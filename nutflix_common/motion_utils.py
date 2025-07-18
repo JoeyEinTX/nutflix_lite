@@ -7,12 +7,14 @@ Handles motion detection logic using OpenCV background subtraction
 import cv2
 import numpy as np
 import time
-import logging
 from typing import Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
 
-# Set up logging
-logger = logging.getLogger(__name__)
+# Use nutflix_common logger
+from .logger import get_motion_logger
+
+# Get logger for this module
+logger = get_motion_logger()
 
 
 @dataclass

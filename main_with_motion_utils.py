@@ -15,20 +15,30 @@ from PIL import Image, ImageTk
 # Import from our nutflix_common package
 from nutflix_common.config_loader import load_config
 from nutflix_common.motion_utils import MotionDetector, MotionConfig
+from nutflix_common.logger import get_logger, configure_from_config
 from camera_manager import CameraManager
 
 class NutflixLiteGUI:
     def __init__(self, root, config_path="config.yaml"):
         self.root = root
         
+        # Initialize logger first
+        self.logger = get_logger("gui")
+        
         # Load configuration
         try:
             self.config = load_config(config_path)
             self.log_message(f"Configuration loaded from: {config_path}")
+            
+            # Configure logging from config
+            configure_from_config(self.config)
+            self.logger.info("Logging configured from config file")
+            
         except Exception as e:
             # Fallback to default config if loading fails
             self.config = self._get_default_config()
             self.log_message(f"Using default config due to error: {e}")
+            self.logger.warning(f"Config loading failed, using defaults: {e}")
         
         # Extract configuration values
         self.app_config = self.config.get('app_name', 'Nutflix Lite')
@@ -80,8 +90,10 @@ class NutflixLiteGUI:
             self.log(f"Camera system: {camera_info['critter_cam']['type']} mode")
             self.log(f"CritterCam: {'✓' if camera_info['critter_cam']['available'] else '✗'}")
             self.log(f"NutCam: {'✓' if camera_info['nut_cam']['available'] else '✗'}")
+            self.logger.info(f"Camera manager initialized in {camera_info['critter_cam']['type']} mode")
         except Exception as e:
             self.log(f"❌ Camera initialization failed: {e}")
+            self.logger.error(f"Camera initialization failed: {e}")
             self.camera_manager = None
 
         # Initialize Motion Detector with config
@@ -92,6 +104,7 @@ class NutflixLiteGUI:
         )
         self.motion_detector = MotionDetector(motion_config)
         self.log(f"Motion detector initialized: threshold={motion_config.threshold}, cooldown={motion_config.cooldown}s")
+        self.logger.info(f"Motion detector configured: threshold={motion_config.threshold}, cooldown={motion_config.cooldown}s")
 
         self.running = True
         self.update_video()
@@ -172,6 +185,9 @@ class NutflixLiteGUI:
         self.log(f"🔴 MOTION DETECTED in {camera_name}! "
                 f"(Events: {stats['motion_events_count']}, "
                 f"Frames: {stats['frames_processed']})")
+        
+        # Also log to structured logger
+        self.logger.info(f"Motion detected in {camera_name} - Events: {stats['motion_events_count']}, Frames: {stats['frames_processed']}")
 
     def log(self, message):
         timestamp = time.strftime("%H:%M:%S")

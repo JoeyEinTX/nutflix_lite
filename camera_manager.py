@@ -5,13 +5,14 @@ Handles dual camera inputs with hardware/debug mode support
 """
 
 import cv2
-import logging
 import os
 from typing import Dict, Optional, Any
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Use nutflix_common logger
+from nutflix_common.logger import get_camera_logger
+
+# Get logger for this module
+logger = get_camera_logger()
 
 
 class CameraManager:

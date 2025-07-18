@@ -27,3 +27,5 @@ gui:
 logging:
   level: "INFO"
   format: "[%(asctime)s] %(levelname)s - %(message)s"
+  # file: "logs/nutflix_lite.log"  # Uncomment to enable file logging
+  # file_level: "DEBUG"             # Log level for file output
