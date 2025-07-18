@@ -1,0 +1,29 @@
+# Nutflix Lite Configuration
+app_name: "Nutflix Lite"
+version: "1.0.0"
+
+# Camera Configuration
+cameras:
+  critter_cam_id: 0
+  nut_cam_id: 1
+  debug_mode: true  # Set to false for production Raspberry Pi
+
+# Motion Detection Settings
+motion_detection:
+  threshold: 500        # Minimum contour area to consider as motion
+  sensitivity: 25       # Threshold for frame difference
+  cooldown: 2.0        # Seconds between motion logs
+
+# GUI Settings
+gui:
+  window_width: 1280
+  window_height: 720
+  background_color: "#111"
+  log_height: 8
+  log_bg_color: "#222"
+  log_fg_color: "#0f0"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "[%(asctime)s] %(levelname)s - %(message)s"
