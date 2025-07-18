@@ -10,6 +10,7 @@ __author__ = "Nutflix Team"
 from .config_loader import load_config
 from .motion_utils import MotionDetector, MotionConfig, create_motion_detector
 from .logger import get_logger, get_motion_logger, get_camera_logger, get_ai_logger
+from .ai_utils import ImageClassifier, load_model, classify_frame
 
 __all__ = [
     'load_config', 
@@ -19,5 +20,8 @@ __all__ = [
     'get_logger',
     'get_motion_logger',
     'get_camera_logger', 
-    'get_ai_logger'
+    'get_ai_logger',
+    'ImageClassifier',
+    'load_model',
+    'classify_frame'
 ]

@@ -1,0 +1,22 @@
+# Core dependencies
+opencv-python>=4.5.0
+numpy>=1.20.0
+PyYAML>=6.0
+
+# GUI dependencies
+# tkinter is included with Python by default
+
+# Optional AI/ML dependencies
+# Uncomment these lines to enable AI classification features:
+
+# PyTorch option (recommended for CPU inference)
+# torch>=1.9.0
+# torchvision>=0.10.0
+
+# TensorFlow option (alternative to PyTorch)
+# tensorflow>=2.6.0
+
+# Development dependencies (optional)
+# pytest>=6.0.0
+# flake8>=3.9.0
+# mypy>=0.910

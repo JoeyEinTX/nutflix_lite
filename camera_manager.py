@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Camera Manager for Nutflix Lite
-Handles dual camera inputs with hardware/debug mode support
+Handles dual camera inputs for production Raspberry Pi hardware.
 """
 
 import cv2
-import os
+import time
 from typing import Dict, Optional, Any
 
 # Use nutflix_common logger
@@ -17,22 +17,21 @@ logger = get_camera_logger()
 
 class CameraManager:
     """
-    Production-ready camera manager for Nutflix Lite dual-camera setup.
-    Supports both hardware cameras (Raspberry Pi) and debug mode with video files.
+    Manages camera capture operations for production Raspberry Pi hardware.
+    
+    This class handles dual camera setup with real hardware cameras.
     """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict):
         """
-        Initialize the camera manager with configuration.
+        Initialize the camera manager.
         
         Args:
-            config: Dictionary containing:
+            config: Dictionary containing camera configuration:
                 - critter_cam_id: Camera ID for CritterCam (default: 0)
                 - nut_cam_id: Camera ID for NutCam (default: 1)
-                - debug_mode: Boolean flag for debug mode (default: False)
         """
         self.config = config
-        self.debug_mode = config.get('debug_mode', False)
         self.critter_cam_id = config.get('critter_cam_id', 0)
         self.nut_cam_id = config.get('nut_cam_id', 1)
         
@@ -40,52 +39,37 @@ class CameraManager:
         self._critter_capture = None
         self._nut_capture = None
         
-        # Video file paths for debug mode
-        self._critter_video_path = "sample_clips/crittercam.mp4"
-        self._nut_video_path = "sample_clips/nutcam.mp4"
-        
-        logger.info(f"Initializing CameraManager - Debug mode: {self.debug_mode}")
+        logger.info("Initializing CameraManager for hardware cameras")
         
         # Initialize cameras
         self._initialize_cameras()
     
     def _initialize_cameras(self):
-        """Initialize camera capture objects based on mode."""
-        if self.debug_mode:
-            self._initialize_debug_cameras()
-        else:
-            self._initialize_hardware_cameras()
-    
-    def _initialize_debug_cameras(self):
-        """Initialize cameras in debug mode using video files."""
-        logger.info("Initializing debug mode cameras with video files")
+        """Initialize hardware camera capture objects."""
+        logger.info("Initializing hardware cameras")
         
-        # Initialize CritterCam with video file
-        if os.path.exists(self._critter_video_path):
-            self._critter_capture = cv2.VideoCapture(self._critter_video_path)
-            if self._critter_capture.isOpened():
-                logger.info(f"CritterCam debug video loaded: {self._critter_video_path}")
-            else:
-                logger.warning(f"Failed to open CritterCam debug video: {self._critter_video_path}")
-                self._critter_capture = None
-        else:
-            logger.warning(f"CritterCam debug video file not found: {self._critter_video_path}")
-            self._critter_capture = None
+        # Initialize CritterCam
+        try:
+            self._critter_capture = cv2.VideoCapture(self.critter_cam_id)
+            if not self._critter_capture.isOpened():
+                raise RuntimeError(f"Failed to open CritterCam with ID {self.critter_cam_id}")
+            logger.info(f"CritterCam initialized successfully (ID: {self.critter_cam_id})")
+        except Exception as e:
+            logger.error(f"CritterCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
         
-        # Initialize NutCam with video file
-        if os.path.exists(self._nut_video_path):
-            self._nut_capture = cv2.VideoCapture(self._nut_video_path)
-            if self._nut_capture.isOpened():
-                logger.info(f"NutCam debug video loaded: {self._nut_video_path}")
-            else:
-                logger.warning(f"Failed to open NutCam debug video: {self._nut_video_path}")
-                self._nut_capture = None
-        else:
-            logger.warning(f"NutCam debug video file not found: {self._nut_video_path}")
-            self._nut_capture = None
+        # Initialize NutCam
+        try:
+            self._nut_capture = cv2.VideoCapture(self.nut_cam_id)
+            if not self._nut_capture.isOpened():
+                raise RuntimeError(f"Failed to open NutCam with ID {self.nut_cam_id}")
+            logger.info(f"NutCam initialized successfully (ID: {self.nut_cam_id})")
+        except Exception as e:
+            logger.error(f"NutCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
     
-    def _initialize_hardware_cameras(self):
-        """Initialize hardware cameras for production use."""
+    def _initialize_cameras(self):
+        """Initialize hardware camera capture objects."""
         logger.info("Initializing hardware cameras")
         
         # Initialize CritterCam
@@ -128,16 +112,7 @@ class CameraManager:
                 if ret and frame is not None:
                     frames['critter_cam'] = frame
                 else:
-                    # Handle video loop for debug mode
-                    if self.debug_mode and self._critter_capture:
-                        self._critter_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                        ret, frame = self._critter_capture.read()
-                        if ret and frame is not None:
-                            frames['critter_cam'] = frame
-                        else:
-                            logger.warning("CritterCam frame read failed even after loop reset")
-                    else:
-                        logger.warning("CritterCam frame read failed")
+                    logger.warning("CritterCam frame read failed")
             except Exception as e:
                 logger.error(f"Error reading CritterCam frame: {e}")
         
@@ -148,16 +123,7 @@ class CameraManager:
                 if ret and frame is not None:
                     frames['nut_cam'] = frame
                 else:
-                    # Handle video loop for debug mode
-                    if self.debug_mode and self._nut_capture:
-                        self._nut_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                        ret, frame = self._nut_capture.read()
-                        if ret and frame is not None:
-                            frames['nut_cam'] = frame
-                        else:
-                            logger.warning("NutCam frame read failed even after loop reset")
-                    else:
-                        logger.warning("NutCam frame read failed")
+                    logger.warning("NutCam frame read failed")
             except Exception as e:
                 logger.error(f"Error reading NutCam frame: {e}")
         
@@ -211,16 +177,15 @@ class CameraManager:
             Dictionary with camera configuration and status information
         """
         return {
-            'debug_mode': self.debug_mode,
             'critter_cam': {
-                'id': self.critter_cam_id if not self.debug_mode else self._critter_video_path,
+                'id': self.critter_cam_id,
                 'available': self.is_camera_available('critter_cam'),
-                'type': 'video_file' if self.debug_mode else 'hardware'
+                'type': 'hardware'
             },
             'nut_cam': {
-                'id': self.nut_cam_id if not self.debug_mode else self._nut_video_path,
+                'id': self.nut_cam_id,
                 'available': self.is_camera_available('nut_cam'),
-                'type': 'video_file' if self.debug_mode else 'hardware'
+                'type': 'hardware'
             }
         }
     
@@ -235,16 +200,8 @@ class CameraManager:
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Test configuration for debug mode
-    debug_config = {
-        'debug_mode': True,
-        'critter_cam_id': 0,
-        'nut_cam_id': 1
-    }
-    
-    # Test configuration for hardware mode
+    # Test configuration for hardware cameras
     hardware_config = {
-        'debug_mode': False,
         'critter_cam_id': 0,
         'nut_cam_id': 1
     }
@@ -253,20 +210,24 @@ if __name__ == "__main__":
     
     # Test with context manager (recommended usage)
     try:
-        with CameraManager(debug_config) as cam_manager:
+        with CameraManager(hardware_config) as cam_manager:
             print(f"Camera info: {cam_manager.get_camera_info()}")
             
             # Read a few frames to test
-            for i in range(3):
+            for i in range(5):
                 frames = cam_manager.read_frames()
-                critter_frame = frames['critter_cam']
-                nut_frame = frames['nut_cam']
-                
                 print(f"Frame {i+1}:")
-                print(f"  CritterCam: {'✓' if critter_frame is not None else '✗'}")
-                print(f"  NutCam: {'✓' if nut_frame is not None else '✗'}")
-        
-        print("CameraManager test completed successfully!")
-        
+                print(f"  CritterCam: {'OK' if frames['critter_cam'] is not None else 'Failed'}")
+                print(f"  NutCam: {'OK' if frames['nut_cam'] is not None else 'Failed'}")
+                
+                if frames['critter_cam'] is not None:
+                    print(f"  CritterCam shape: {frames['critter_cam'].shape}")
+                if frames['nut_cam'] is not None:
+                    print(f"  NutCam shape: {frames['nut_cam'].shape}")
+                
+                time.sleep(0.1)  # Small delay between frames
+                
     except Exception as e:
-        print(f"CameraManager test failed: {e}")
+        print(f"Error during camera testing: {e}")
+    
+    print("Camera testing completed")
