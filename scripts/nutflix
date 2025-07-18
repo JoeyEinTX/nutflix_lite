@@ -1,0 +1,72 @@
+#!/bin/bash
+# Nutflix Service Management Script
+
+case "$1" in
+    start)
+        echo "🚀 Starting Nutflix services..."
+        sudo systemctl start nutflix
+        sudo systemctl start nutflix-web
+        echo "✅ Services started!"
+        ;;
+    stop)
+        echo "🛑 Stopping Nutflix services..."
+        sudo systemctl stop nutflix-web
+        sudo systemctl stop nutflix
+        echo "✅ Services stopped!"
+        ;;
+    restart)
+        echo "🔄 Restarting Nutflix services..."
+        sudo systemctl restart nutflix
+        sudo systemctl restart nutflix-web
+        echo "✅ Services restarted!"
+        ;;
+    status)
+        echo "📊 Nutflix Camera System:"
+        sudo systemctl status nutflix --no-pager -l
+        echo ""
+        echo "📊 Nutflix Web Dashboard:"
+        sudo systemctl status nutflix-web --no-pager -l
+        ;;
+    logs)
+        if [ "$2" == "web" ]; then
+            echo "📋 Following web dashboard logs (Ctrl+C to exit):"
+            sudo journalctl -u nutflix-web -f
+        else
+            echo "📋 Following camera system logs (Ctrl+C to exit):"
+            sudo journalctl -u nutflix -f
+        fi
+        ;;
+    enable)
+        echo "✅ Enabling auto-start on boot..."
+        sudo systemctl enable nutflix
+        sudo systemctl enable nutflix-web
+        echo "✅ Auto-start enabled!"
+        ;;
+    disable)
+        echo "❌ Disabling auto-start on boot..."
+        sudo systemctl disable nutflix
+        sudo systemctl disable nutflix-web
+        echo "✅ Auto-start disabled!"
+        ;;
+    *)
+        echo "🥜 Nutflix Service Manager"
+        echo ""
+        echo "Usage: $0 {start|stop|restart|status|logs|enable|disable}"
+        echo ""
+        echo "Commands:"
+        echo "  start    - Start both camera system and web dashboard"
+        echo "  stop     - Stop both services"
+        echo "  restart  - Restart both services"
+        echo "  status   - Show status of both services"
+        echo "  logs     - Follow camera system logs (use 'logs web' for dashboard)"
+        echo "  enable   - Enable auto-start on boot"
+        echo "  disable  - Disable auto-start on boot"
+        echo ""
+        echo "Examples:"
+        echo "  $0 start"
+        echo "  $0 logs"
+        echo "  $0 logs web"
+        echo "  $0 status"
+        exit 1
+        ;;
+esac
