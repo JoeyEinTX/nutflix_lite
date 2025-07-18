@@ -6,7 +6,6 @@ version: "1.0.0"
 cameras:
   critter_cam_id: 0
   nut_cam_id: 1
-  debug_mode: true  # Set to false for production Raspberry Pi
 
 # Motion Detection Settings
 motion_detection:

@@ -68,30 +68,6 @@ class CameraManager:
             logger.error(f"NutCam initialization failed: {e}")
             raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
     
-    def _initialize_cameras(self):
-        """Initialize hardware camera capture objects."""
-        logger.info("Initializing hardware cameras")
-        
-        # Initialize CritterCam
-        try:
-            self._critter_capture = cv2.VideoCapture(self.critter_cam_id)
-            if not self._critter_capture.isOpened():
-                raise RuntimeError(f"Failed to open CritterCam with ID {self.critter_cam_id}")
-            logger.info(f"CritterCam initialized successfully (ID: {self.critter_cam_id})")
-        except Exception as e:
-            logger.error(f"CritterCam initialization failed: {e}")
-            raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
-        
-        # Initialize NutCam
-        try:
-            self._nut_capture = cv2.VideoCapture(self.nut_cam_id)
-            if not self._nut_capture.isOpened():
-                raise RuntimeError(f"Failed to open NutCam with ID {self.nut_cam_id}")
-            logger.info(f"NutCam initialized successfully (ID: {self.nut_cam_id})")
-        except Exception as e:
-            logger.error(f"NutCam initialization failed: {e}")
-            raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
-    
     def read_frames(self) -> Dict[str, Optional[Any]]:
         """
         Read one frame from each camera.

@@ -13,7 +13,7 @@ def test_nutflix_imports():
         config = load_config('config.yaml')
         print("✅ config.yaml loaded successfully")
         print(f"   App: {config.get('app_name')}")
-        print(f"   Debug mode: {config['cameras']['debug_mode']}")
+        print(f"   Camera IDs: {config['cameras']['critter_cam_id']}, {config['cameras']['nut_cam_id']}")
         
         return True
     except Exception as e:
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         print("4. ✅ Ready for production use!")
         print("\nTo run the full app:")
         print("   python3 main_updated.py")
-        print("\nTo switch to hardware mode, edit config.yaml:")
-        print("   cameras.debug_mode: false")
+        print("\nFor hardware mode, ensure camera IDs in config.yaml match your setup:")
+        print("   cameras: {critter_cam_id: 0, nut_cam_id: 1}")
     else:
         print("\n❌ Integration test failed")

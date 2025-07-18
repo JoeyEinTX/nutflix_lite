@@ -1,7 +1,10 @@
 README.md
 setup.py
 nutflix_common/__init__.py
+nutflix_common/ai_utils.py
 nutflix_common/config_loader.py
+nutflix_common/logger.py
+nutflix_common/motion_utils.py
 nutflix_common.egg-info/PKG-INFO
 nutflix_common.egg-info/SOURCES.txt
 nutflix_common.egg-info/dependency_links.txt

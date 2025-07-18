@@ -1,47 +1,20 @@
-# Sample Video Clips
+# Sample Video Clips - DEPRECATED
 
-This directory contains sample video files for debugging and testing the Nutflix Lite application when hardware cameras are not available.
+⚠️ **This directory is no longer used in the production version of Nutflix Lite.**
 
-## Required Video Files
+The application now runs exclusively with real hardware cameras on Raspberry Pi.
 
-For dual-camera mode testing, place the following video files in this directory:
+## Migration Notes
 
-- `camera1.mp4` - Simulates first camera feed
-- `camera2.mp4` - Simulates second camera feed
+If you need to test the application without hardware cameras, consider:
 
-## Video Format Requirements
+1. **Use a webcam**: Connect a USB webcam and update camera IDs in `config.yaml`
+2. **Use virtual cameras**: Set up OBS Virtual Camera or similar software
+3. **Test with single camera**: Modify the code to work with just one camera
 
-- **Format**: MP4 (H.264 codec recommended)
-- **Resolution**: 640x480 or higher
-- **Frame Rate**: 30 FPS recommended
-- **Duration**: Any length (will loop automatically)
+## Hardware Setup
 
-## Testing Motion Detection
-
-For optimal motion detection testing:
-
-1. Include videos with moving objects (people, vehicles, animals)
-2. Have periods of stillness to test background subtraction
-3. Use good lighting and contrast
-4. Avoid excessive camera shake
-
-## Debug Mode Usage
-
-When running the application, set `debug_mode: true` in your configuration file to use these sample videos instead of hardware cameras.
-
-Example config:
-```yaml
-cameras:
-  debug_mode: true
-  camera1_id: 0  # Will use camera1.mp4
-  camera2_id: 1  # Will use camera2.mp4
-```
-
-## Sample Video Sources
-
-Free sample videos can be downloaded from:
-- [Pixabay](https://pixabay.com/videos/)
-- [Pexels](https://www.pexels.com/videos/)
-- [Videvo](https://www.videvo.net/)
-
-Remember to respect licensing terms when using sample videos.
+For production deployment on Raspberry Pi:
+- Connect your cameras to USB ports or CSI camera connectors
+- Update `config.yaml` with correct camera IDs (usually 0 and 1)
+- Ensure adequate power supply for multiple cameras

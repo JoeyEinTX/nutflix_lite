@@ -1,7 +1,7 @@
 # Nutflix Lite Camera System
 
 ## Overview
-The `CameraManager` class provides a production-ready dual-camera system for Nutflix Lite that works both on Raspberry Pi hardware and in development environments.
+The `CameraManager` class provides a production-ready dual-camera system for Nutflix Lite that works on Raspberry Pi hardware.
 
 ## Features
 
@@ -9,19 +9,10 @@ The `CameraManager` class provides a production-ready dual-camera system for Nut
 - **CritterCam**: Primary camera (default ID: 0)
 - **NutCam**: Secondary camera (default ID: 1)
 
-### 🔧 Two Operating Modes
-
-#### Production Mode (`debug_mode = False`)
+### 🔧 Production Mode
 - Uses real hardware cameras via `cv2.VideoCapture(camera_id)`
 - Raises `RuntimeError` if cameras can't be opened
 - Perfect for Raspberry Pi deployment
-
-#### Debug Mode (`debug_mode = True`)
-- Uses video files instead of hardware cameras
-- CritterCam → `sample_clips/crittercam.mp4`
-- NutCam → `sample_clips/nutcam.mp4`
-- Automatically loops videos
-- Great for development in Codespaces
 
 ## Usage
 
@@ -32,8 +23,7 @@ from camera_manager import CameraManager
 # Configuration
 config = {
     'critter_cam_id': 0,
-    'nut_cam_id': 1,
-    'debug_mode': True  # False for production
+    'nut_cam_id': 1
 }
 
 # Initialize camera manager
@@ -65,9 +55,6 @@ nutflix_lite/
 ├── main.py                    # Main GUI application
 ├── camera_manager.py          # Camera management class
 ├── integration_example.py     # Integration examples
-├── sample_clips/              # Debug mode video files
-│   ├── crittercam.mp4        # Sample video for CritterCam
-│   └── nutcam.mp4            # Sample video for NutCam
 └── README_cameras.md         # This file
 ```
 
@@ -80,8 +67,7 @@ nutflix_lite/
 CameraManager(config: Dict[str, Any])
 ```
 - `config['critter_cam_id']`: Camera ID for CritterCam (default: 0)
-- `config['nut_cam_id']`: Camera ID for NutCam (default: 1)  
-- `config['debug_mode']`: Boolean for debug mode (default: False)
+- `config['nut_cam_id']`: Camera ID for NutCam (default: 1)
 
 #### Methods
 - `read_frames()` → `Dict[str, Optional[frame]]`: Read one frame from each camera
@@ -106,13 +92,4 @@ config = {
 }
 ```
 
-### For Development/Testing
-```python
-config = {
-    'debug_mode': True,
-    'critter_cam_id': 0,  # Not used in debug mode
-    'nut_cam_id': 1       # Not used in debug mode
-}
-```
-
-Place sample video files in `sample_clips/` directory for debug mode testing.
+Make sure your camera hardware is properly connected and the camera IDs match your system configuration.
