@@ -16,8 +16,9 @@ from nutflix_common.logger import get_camera_logger
 try:
     from picamera2 import Picamera2
     PICAMERA2_AVAILABLE = True
-except ImportError:
+except (ImportError, ValueError) as e:
     PICAMERA2_AVAILABLE = False
+    # Silently continue - we'll use libcamera-still bridge instead
 
 # Import libcamera bridge for Raspberry Pi (fallback)
 try:
