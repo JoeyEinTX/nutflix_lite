@@ -6,10 +6,18 @@ Handles dual camera inputs for production Raspberry Pi hardware.
 
 import cv2
 import time
+import platform
 from typing import Dict, Optional, Any
 
 # Use nutflix_common logger
 from nutflix_common.logger import get_camera_logger
+
+# Import libcamera bridge for Raspberry Pi
+try:
+    from libcamera_bridge import LibCameraCapture
+    LIBCAMERA_AVAILABLE = True
+except ImportError:
+    LIBCAMERA_AVAILABLE = False
 
 # Get logger for this module
 logger = get_camera_logger()
@@ -20,6 +28,7 @@ class CameraManager:
     Manages camera capture operations for production Raspberry Pi hardware.
     
     This class handles dual camera setup with real hardware cameras.
+    Uses libcamera bridge on Raspberry Pi for better camera compatibility.
     """
     
     def __init__(self, config: dict):
@@ -39,15 +48,61 @@ class CameraManager:
         self._critter_capture = None
         self._nut_capture = None
         
-        logger.info("Initializing CameraManager for hardware cameras")
+        # Detect if we're on Raspberry Pi
+        self._is_raspberry_pi = self._detect_raspberry_pi()
+        self._use_libcamera = self._is_raspberry_pi and LIBCAMERA_AVAILABLE
+        
+        logger.info(f"Initializing CameraManager for hardware cameras")
+        logger.info(f"Platform: {'Raspberry Pi' if self._is_raspberry_pi else 'Other'}")
+        logger.info(f"Using libcamera: {self._use_libcamera}")
         
         # Initialize cameras
         self._initialize_cameras()
+    
+    def _detect_raspberry_pi(self) -> bool:
+        """Detect if we're running on a Raspberry Pi."""
+        try:
+            with open('/proc/cpuinfo', 'r') as f:
+                cpuinfo = f.read()
+                return 'BCM' in cpuinfo or 'ARM' in cpuinfo
+        except:
+            return False
     
     def _initialize_cameras(self):
         """Initialize hardware camera capture objects."""
         logger.info("Initializing hardware cameras")
         
+        if self._use_libcamera:
+            logger.info("Using libcamera bridge for Raspberry Pi cameras")
+            self._initialize_libcamera()
+        else:
+            logger.info("Using OpenCV VideoCapture")
+            self._initialize_opencv()
+    
+    def _initialize_libcamera(self):
+        """Initialize cameras using libcamera bridge."""
+        # Initialize CritterCam
+        try:
+            self._critter_capture = LibCameraCapture(self.critter_cam_id, width=640, height=480, fps=30)
+            if not self._critter_capture.start():
+                raise RuntimeError(f"Failed to start CritterCam with ID {self.critter_cam_id}")
+            logger.info(f"CritterCam initialized with libcamera (ID: {self.critter_cam_id})")
+        except Exception as e:
+            logger.error(f"CritterCam libcamera initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
+        
+        # Initialize NutCam
+        try:
+            self._nut_capture = LibCameraCapture(self.nut_cam_id, width=640, height=480, fps=30)
+            if not self._nut_capture.start():
+                raise RuntimeError(f"Failed to start NutCam with ID {self.nut_cam_id}")
+            logger.info(f"NutCam initialized with libcamera (ID: {self.nut_cam_id})")
+        except Exception as e:
+            logger.error(f"NutCam libcamera initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
+    
+    def _initialize_opencv(self):
+        """Initialize cameras using OpenCV VideoCapture."""
         # Initialize CritterCam
         try:
             self._critter_capture = cv2.VideoCapture(self.critter_cam_id)
@@ -164,6 +219,11 @@ class CameraManager:
                 'type': 'hardware'
             }
         }
+    
+    def cleanup(self):
+        """Clean up resources and release cameras."""
+        logger.info("Cleaning up camera resources...")
+        self.release()
     
     def __enter__(self):
         """Context manager entry."""
