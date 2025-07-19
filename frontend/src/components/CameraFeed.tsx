@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface CameraFeedProps {
   id: string;
@@ -11,16 +11,50 @@ interface CameraFeedProps {
 
 export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFullscreen }: CameraFeedProps) {
   const [imageError, setImageError] = useState(false);
+  const [streamError, setStreamError] = useState(false);
   const [imageKey, setImageKey] = useState(0);
+  const [useMjpeg, setUseMjpeg] = useState(true);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  // Refresh image every 2 seconds for live preview
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setImageKey(prev => prev + 1);
-    }, 2000);
+  // Detect mobile or slow connections for better UX
+  const shouldUseMjpeg = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+    
+    // Check network connection if available
+    const connection = (navigator as any).connection;
+    const isSlowConnection = connection && (
+      connection.effectiveType === 'slow-2g' || 
+      connection.effectiveType === '2g' ||
+      connection.saveData
+    );
+    
+    // Use snapshots for mobile or slow connections to save bandwidth
+    return !isMobile && !isSlowConnection;
+  };
 
-    return () => clearInterval(interval);
+  // Initialize stream preference based on device/connection
+  useEffect(() => {
+    setUseMjpeg(shouldUseMjpeg());
   }, []);
+
+  // Refresh snapshots every 2 seconds when using snapshot mode
+  useEffect(() => {
+    if (!useMjpeg) {
+      const interval = setInterval(() => {
+        setImageKey(prev => prev + 1);
+        setImageError(false); // Reset error state on refresh
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }
+  }, [useMjpeg]);
+
+  const handleStreamError = () => {
+    console.log(`MJPEG stream failed for ${title}, falling back to snapshots`);
+    setStreamError(true);
+    setUseMjpeg(false);
+  };
 
   const handleImageError = () => {
     setImageError(true);
@@ -31,10 +65,19 @@ export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFull
     }, 2000);
   };
 
+  const handleImageLoad = () => {
+    setImageError(false);
+    setStreamError(false);
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     onFullscreen();
   };
+
+  // Determine which source to use
+  const currentSource = useMjpeg && !streamError ? streamUrl : `${snapshotUrl}?t=${imageKey}`;
+  const feedMode = useMjpeg && !streamError ? 'live stream' : 'live preview';
 
   return (
     <div className="camera-feed-container">
@@ -62,10 +105,12 @@ export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFull
             </div>
           ) : (
             <img
-              src={`${snapshotUrl}?t=${imageKey}`}
+              ref={imgRef}
+              src={currentSource}
               alt={`${title} Feed`}
               className="w-full aspect-video object-cover border border-stone-600 rounded transition-transform group-hover:scale-105"
-              onError={handleImageError}
+              onError={useMjpeg ? handleStreamError : handleImageError}
+              onLoad={handleImageLoad}
             />
           )}
           
@@ -78,7 +123,8 @@ export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFull
         </div>
         
         <div className="mt-3 text-xs text-stone-500 text-center">
-          Live preview • Click for full stream
+          {feedMode} • Click for full stream
+          {streamError && <span className="text-amber-400"> (using snapshots)</span>}
         </div>
       </div>
     </div>
