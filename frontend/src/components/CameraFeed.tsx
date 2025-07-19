@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Maximize2 } from 'lucide-react';
-import { Button } from './ui/button';
+// import { Maximize2 } from 'lucide-react';
+// import { Button } from './ui/button';
 
 interface CameraFeedProps {
   id: string;
@@ -11,7 +11,7 @@ interface CameraFeedProps {
   onFullscreen: () => void;
 }
 
-export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFullscreen }: CameraFeedProps) {
+export function CameraFeed({ title, location, streamUrl, snapshotUrl, onFullscreen }: CameraFeedProps) {
   const [imageError, setImageError] = useState(false);
   const [streamError, setStreamError] = useState(false);
   const [imageKey, setImageKey] = useState(0);
@@ -110,14 +110,12 @@ export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFull
         </div>
         
         {/* Fullscreen button matching Figma */}
-        <Button
+        <button
           onClick={onFullscreen}
-          size="sm"
-          variant="secondary"
-          className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm h-8 w-8 p-0"
+          className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm h-8 w-8 p-0 rounded"
         >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
+          ⛶
+        </button>
         
         {/* Camera info overlay matching Figma */}
         <div className="absolute bottom-4 left-4 right-4">

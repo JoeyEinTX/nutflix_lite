@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CameraFeed } from './components/CameraFeed';
-import { SightingThumbnail } from './components/SightingThumbnail';
 import { FullscreenModal } from './components/FullscreenModal';
-import { SquirrelBoxSensors } from './components/SquirrelBoxSensors';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
-import { io, Socket } from 'socket.io-client';
 import './globals.css';
 
 // Mock data for recent squirrel sightings (will be replaced with real data from Flask API)
@@ -81,71 +77,12 @@ export default function App() {
     content: {}
   });
 
-  const [carouselIndex, setCarouselIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [systemStatus, setSystemStatus] = useState<SystemStatus>({
-    cameras: {
-      critter_cam: 'Initializing...',
-      nut_cam: 'Initializing...'
-    },
-    motion_detection: 'ready',
-    system: 'active'
-  });
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [environmentalData, setEnvironmentalData] = useState({
+  const [environmentalData] = useState({
     temperature: 42, // Default values, will be updated from sensors
     humidity: 65,
     lastUpdate: new Date().toISOString()
   });
-
-  // Responsive items per view
-  const itemsPerView = isMobile ? 1 : 3;
-  const maxIndex = Math.max(0, recentSightings.length - itemsPerView);
-
-  // Initialize WebSocket connection to Flask-SocketIO
-  useEffect(() => {
-    const newSocket = io('/', {
-      transports: ['websocket', 'polling'],
-      upgrade: true,
-      rememberUpgrade: true,
-      timeout: 5000,
-      forceNew: true
-    });
-
-    newSocket.on('connect', () => {
-      console.log('Connected to NutFlix Flask backend');
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from NutFlix Flask backend');
-    });
-
-    newSocket.on('system_status', (data) => {
-      console.log('System status update:', data);
-      if (data.cameras) {
-        setSystemStatus(prev => ({
-          ...prev,
-          cameras: data.cameras
-        }));
-      }
-    });
-
-    newSocket.on('camera_status', (data) => {
-      console.log('Camera status update:', data);
-      if (data.cameras) {
-        setSystemStatus(prev => ({
-          ...prev,
-          cameras: data.cameras
-        }));
-      }
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.close();
-    };
-  }, []);
 
   // Check if mobile
   useEffect(() => {
@@ -156,31 +93,6 @@ export default function App() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Reset carousel index when itemsPerView changes
-  useEffect(() => {
-    setCarouselIndex(0);
-  }, [itemsPerView]);
-
-  // Fetch system status from Flask API
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch('/api/status');
-        if (response.ok) {
-          const data = await response.json();
-          setSystemStatus(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch system status:', error);
-      }
-    };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
   }, []);
 
   // Calculate some quick stats
@@ -203,25 +115,8 @@ export default function App() {
     });
   };
 
-  const openSightingFullscreen = (sighting: typeof recentSightings[0]) => {
-    setFullscreenModal({
-      isOpen: true,
-      type: 'sighting',
-      title: sighting.animal,
-      content: sighting
-    });
-  };
-
   const closeModal = () => {
     setFullscreenModal({ ...fullscreenModal, isOpen: false });
-  };
-
-  const nextSlide = () => {
-    setCarouselIndex(prev => Math.min(prev + 1, maxIndex));
-  };
-
-  const prevSlide = () => {
-    setCarouselIndex(prev => Math.max(prev - 1, 0));
   };
 
   return (
