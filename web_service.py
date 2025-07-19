@@ -76,14 +76,21 @@ class NutflixWebService:
         try:
             # Initialize camera manager for video feeds
             self.logger.info("Initializing camera manager for video feeds...")
-            self.logger.info(f"Config being passed to CameraManager: {self.config}")
+            self.logger.info(f"Full config: {self.config}")
             
-            # Extract camera config properly
+            # Extract camera config and flatten it for CameraManager
             camera_config = self.config.get('cameras', {})
             self.logger.info(f"Camera config: {camera_config}")
             
+            # CameraManager expects critter_cam_id and nut_cam_id directly in config
+            flattened_config = {
+                'critter_cam_id': camera_config.get('critter_cam_id', 0),
+                'nut_cam_id': camera_config.get('nut_cam_id', 1)
+            }
+            self.logger.info(f"Flattened config for CameraManager: {flattened_config}")
+            
             self.camera_manager = CameraManager(
-                config=camera_config,
+                config=flattened_config,
                 status_callback=self._camera_status_callback
             )
             
