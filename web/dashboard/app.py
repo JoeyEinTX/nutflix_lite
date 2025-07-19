@@ -372,13 +372,13 @@ def api_status():
 
 # SocketIO event handlers
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth):
     """Handle client connection."""
     logger.info("Client connected to dashboard")
     emit('system_status', {
         'status': 'connected',
         'message': 'Welcome to Nutflix Dashboard',
-        'timestamp': eventlet.spawn(lambda: None).get_name()  # Simple timestamp
+        'timestamp': str(time.time())  # Simple timestamp
     })
 
 @socketio.on('disconnect')
