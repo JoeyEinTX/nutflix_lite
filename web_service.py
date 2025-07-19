@@ -97,6 +97,9 @@ class NutflixWebService:
     def _start_web_server(self):
         """Start the web server in the main thread."""
         try:
+            # Add a small delay to ensure camera manager is fully initialized
+            time.sleep(2)
+            
             # Run web server on main thread (required for SocketIO)
             run_web_server(
                 app_context=self,

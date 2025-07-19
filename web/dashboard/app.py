@@ -28,11 +28,11 @@ camera_manager = None
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'nutflix-development-key-change-in-production')
 
-# Initialize SocketIO with eventlet
+# Initialize SocketIO with threading mode for better MJPEG compatibility
 socketio = SocketIO(app, 
-                   async_mode='eventlet',
+                   async_mode='threading',
                    cors_allowed_origins="*",
-                   logger=False,
+                   logger=True,
                    engineio_logger=False)
 
 # Global system status
@@ -291,8 +291,24 @@ def health_check():
     return {
         'status': 'healthy',
         'service': 'nutflix-dashboard',
-        'version': '1.0.0'
+        'version': '1.0.0',
+        'camera_manager': 'available' if camera_manager is not None else 'not_available'
     }
+
+@app.route('/debug/camera_test/<camera_name>')
+def debug_camera_test(camera_name):
+    """Debug endpoint to test camera manager."""
+    if camera_manager is None:
+        return jsonify({'error': 'Camera manager not available'}), 503
+    
+    try:
+        frame_bytes = camera_manager.get_latest_frame(camera_name)
+        if frame_bytes:
+            return Response(frame_bytes, mimetype='image/jpeg')
+        else:
+            return jsonify({'error': f'No frame available from {camera_name}'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/status')
 def api_status():
@@ -374,15 +390,22 @@ def video_feed(camera_name):
     Args:
         camera_name: Either 'critter_cam' or 'nut_cam'
     """
+    logger.info(f"Video feed requested for {camera_name}")
+    
     if camera_name not in ['critter_cam', 'nut_cam']:
+        logger.warning(f"Invalid camera name requested: {camera_name}")
         return "Invalid camera name", 404
     
     def generate_frames():
         """Generate frames for MJPEG streaming."""
+        frame_count = 0
         while True:
             try:
-                # Get frame from camera manager
+                frame_count += 1
+                
+                # Check if camera manager is available
                 if camera_manager is None:
+                    logger.warning(f"Camera manager not available for {camera_name}")
                     # Return a simple placeholder frame
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + 
@@ -390,13 +413,22 @@ def video_feed(camera_name):
                     time.sleep(0.1)
                     continue
                 
+                # Get frame from camera manager
                 frame_bytes = camera_manager.get_latest_frame(camera_name)
                 
                 if frame_bytes is not None:
+                    # Log success occasionally
+                    if frame_count % 100 == 0:
+                        logger.debug(f"Serving frame {frame_count} for {camera_name}, size: {len(frame_bytes)} bytes")
+                    
                     # Return the frame in MJPEG format
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
                 else:
+                    # Log when no frame available
+                    if frame_count % 50 == 0:
+                        logger.warning(f"No frame available from {camera_name} after {frame_count} attempts")
+                    
                     # Return placeholder if no frame available
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + 
@@ -407,6 +439,10 @@ def video_feed(camera_name):
                 
             except Exception as e:
                 logger.error(f"Error in video feed for {camera_name}: {e}")
+                # Return error placeholder
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + 
+                       create_placeholder_frame(f"{camera_name} ERROR") + b'\r\n')
                 time.sleep(1)  # Wait longer on error
     
     return Response(generate_frames(),
@@ -447,8 +483,24 @@ def create_placeholder_frame(camera_name):
         
     except Exception as e:
         logger.error(f"Error creating placeholder frame: {e}")
-        # Return minimal JPEG placeholder
-        return b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x01\xe0\x02\x80\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A\x06\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xf7\xfa(\xa2\x80\x0f\xff\xd9'
+        # Return minimal valid JPEG header for 1x1 black pixel
+        return (b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00'
+                b'\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n'
+                b'\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d'
+                b'\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342'
+                b'\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01'
+                b'\x03\x11\x01\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01'
+                b'\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07'
+                b'\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03'
+                b'\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A'
+                b'\x06\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br'
+                b'\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789:CDEFGHIJSTUVWXYZcdefghij'
+                b'klmnopqrstuvwxyz\x83\x84\x85\x86\x87\x88\x89\x8a\x92\x93\x94\x95'
+                b'\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xb2\xb3'
+                b'\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca'
+                b'\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7'
+                b'\xe8\xe9\xea\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00'
+                b'\x08\x01\x01\x00\x00?\x00\xf7\xfa(\xa2\x80\x0f\xff\xd9')
 
 def set_camera_manager(cm):
     """Set the camera manager instance for video feeds."""
