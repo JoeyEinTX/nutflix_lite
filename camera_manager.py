@@ -62,10 +62,33 @@ class CameraManager:
     def _detect_raspberry_pi(self) -> bool:
         """Detect if we're running on a Raspberry Pi."""
         try:
+            # Check /proc/cpuinfo for Raspberry Pi indicators
             with open('/proc/cpuinfo', 'r') as f:
-                cpuinfo = f.read()
-                return 'BCM' in cpuinfo or 'ARM' in cpuinfo
-        except:
+                cpuinfo = f.read().lower()
+                if 'raspberry pi' in cpuinfo or 'bcm' in cpuinfo:
+                    return True
+            
+            # Check /proc/device-tree/model
+            try:
+                with open('/proc/device-tree/model', 'r') as f:
+                    model = f.read().lower()
+                    if 'raspberry pi' in model:
+                        return True
+            except:
+                pass
+            
+            # Check platform
+            import platform
+            machine = platform.machine().lower()
+            if 'arm' in machine or 'aarch64' in machine:
+                # Additional check for Pi-specific paths
+                import os
+                if os.path.exists('/opt/vc') or os.path.exists('/usr/bin/libcamera-hello'):
+                    return True
+            
+            return False
+        except Exception as e:
+            logger.warning(f"Pi detection failed: {e}")
             return False
     
     def _initialize_cameras(self):
