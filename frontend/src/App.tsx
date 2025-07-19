@@ -225,47 +225,52 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen wildlife-gradient">
-      {/* Header */}
-      <header className="bg-stone-950/80 backdrop-blur-sm border-b border-stone-700 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-amber-200 mb-2">🥜 NutFlix</h1>
-              <p className="text-stone-400 text-sm">Wildlife Monitoring System</p>
+    <div className="min-h-screen bg-background">
+      {/* Header with proper Figma spacing and typography */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              {/* NutFlix logo with acorn icon matching Figma */}
+              <div className="text-4xl">🥜</div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                NUTFLIX
+              </h1>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        {/* System Status Indicator */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-stone-400">
-            <div className={`w-2 h-2 rounded-full ${systemStatus.system === 'active' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-            System Status: {systemStatus.system} | 
-            CritterCam: {systemStatus.cameras.critter_cam} | 
-            NutCam: {systemStatus.cameras.nut_cam}
+      <main className="container mx-auto px-6 py-8 space-y-8">
+        {/* System header section matching Figma layout */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold text-foreground flex items-center gap-3">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                My SquirrelBox
+              </h2>
+            </div>
+            
+            {/* System status with proper Figma styling */}
+            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-foreground">{environmentalData.temperature}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-foreground">{environmentalData.humidity}</span>
+              </div>
+              <div className="text-xs">
+                Updated {environmentalData.lastUpdate}
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* My NutFlix System */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <h2 className="text-xl font-medium text-amber-200 flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              Live Camera Feeds
-            </h2>
-            {/* Environmental sensors */}
-            <SquirrelBoxSensors
-              temperature={environmentalData.temperature}
-              humidity={environmentalData.humidity}
-              lastUpdate={environmentalData.lastUpdate}
-            />
-          </div>
-          
-          {/* Responsive grid: 1 column on mobile, 2 columns on large screens */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Live Camera Feeds Section - Figma Design */}
+        <section className="space-y-6">
+          {/* Camera feeds grid with proper Figma spacing */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {nutflixCameras.map((camera) => (
               <CameraFeed
                 key={camera.id}
@@ -280,66 +285,82 @@ export default function App() {
           </div>
         </section>
 
-        {/* Recent Sightings Carousel */}
-        <section>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-            <h2 className="text-xl font-medium text-amber-200">Recent Wildlife Activity</h2>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={prevSlide}
-                disabled={carouselIndex === 0}
-                size="sm"
-                variant="outline"
-                className="border-stone-600 hover:bg-stone-800 text-stone-300 disabled:opacity-50"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={nextSlide}
-                disabled={carouselIndex >= maxIndex}
-                size="sm"
-                variant="outline"
-                className="border-stone-600 hover:bg-stone-800 text-stone-300 disabled:opacity-50"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
+        {/* Recent Wildlife Activity */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-semibold text-foreground">Recent Wildlife Activity</h2>
+          
           {/* Activity stats */}
-          <div className="flex items-center gap-3 mb-6 flex-wrap">
-            <Badge variant="secondary" className="sensor-badge">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
               {todaysSightings} today
             </Badge>
-            <Badge variant="secondary" className="sensor-badge">
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
               {uniqueSpecies} species
             </Badge>
-            <Badge variant="secondary" className="sensor-badge">
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
               {totalSightings} total sightings
             </Badge>
           </div>
           
-          {/* Carousel container */}
-          <div className="relative">
-            <div className="overflow-hidden">
+          {/* Activity feed */}
+          <div className="space-y-4">
+            {[
+              { 
+                time: '2m ago', 
+                animal: 'Red Squirrel', 
+                location: 'Feeder Station A', 
+                activity: 'Feeding detected',
+                confidence: 95,
+                icon: '🐿️'
+              },
+              { 
+                time: '8m ago', 
+                animal: 'Blue Jay', 
+                location: 'Water Feature', 
+                activity: 'Drinking observed',
+                confidence: 88,
+                icon: '🐦'
+              },
+              { 
+                time: '15m ago', 
+                animal: 'Rabbit', 
+                location: 'Garden Area', 
+                activity: 'Foraging behavior',
+                confidence: 92,
+                icon: '🐰'
+              },
+            ].map((activity, index) => (
               <div 
-                className="transition-transform duration-300 ease-in-out"
-                style={{ 
-                  transform: `translateX(-${carouselIndex * 100}%)`
-                }}
+                key={index} 
+                className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow"
               >
-                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
-                  {recentSightings.slice(carouselIndex * itemsPerView, (carouselIndex + 1) * itemsPerView).map((sighting) => (
-                    <div key={sighting.id} className="w-full max-w-xs mx-auto">
-                      <SightingThumbnail
-                        {...sighting}
-                        onClick={() => openSightingFullscreen(sighting)}
-                      />
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4">
+                    <div className="text-2xl">{activity.icon}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-medium text-foreground">{activity.animal}</h3>
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                          {activity.confidence}% confident
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-1">{activity.location}</p>
+                      <p className="text-sm text-foreground">{activity.activity}</p>
                     </div>
-                  ))}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-muted-foreground">{activity.time}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
+          </div>
+          
+          {/* View All Button */}
+          <div className="text-center">
+            <Button variant="outline" className="bg-background hover:bg-muted border-border">
+              View All Activity
+            </Button>
           </div>
         </section>
       </main>

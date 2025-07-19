@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Maximize2 } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface CameraFeedProps {
   id: string;
@@ -80,51 +82,49 @@ export function CameraFeed({ id, title, location, streamUrl, snapshotUrl, onFull
   const feedMode = useMjpeg && !streamError ? 'live stream' : 'live preview';
 
   return (
-    <div className="camera-feed-container">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-lg font-medium text-amber-200">{title}</h3>
-            <p className="text-sm text-stone-400">{location}</p>
+    <div className="relative bg-card rounded-xl overflow-hidden border border-border shadow-lg hover:shadow-xl transition-shadow">
+      <div className="aspect-video bg-gradient-to-br from-muted/50 to-muted relative">
+        {imageError ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+            <div className="text-center text-muted-foreground">
+              <div className="text-2xl mb-2">📷</div>
+              <p className="text-sm">Camera connecting...</p>
+              <p className="text-xs">Retrying in 2 seconds</p>
+            </div>
           </div>
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+        ) : (
+          <img
+            ref={imgRef}
+            src={currentSource}
+            alt={`${title} Feed`}
+            className="w-full h-full object-cover"
+            onError={useMjpeg ? handleStreamError : handleImageError}
+            onLoad={handleImageLoad}
+          />
+        )}
+        
+        {/* LIVE indicator matching Figma design */}
+        <div className="absolute top-4 left-4 bg-red-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          LIVE
         </div>
         
-        <div 
-          className="relative cursor-pointer group"
-          onClick={handleClick}
-          title="Click for fullscreen view"
+        {/* Fullscreen button matching Figma */}
+        <Button
+          onClick={onFullscreen}
+          size="sm"
+          variant="secondary"
+          className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm h-8 w-8 p-0"
         >
-          {imageError ? (
-            <div className="w-full aspect-video bg-stone-800 border border-stone-600 rounded flex items-center justify-center">
-              <div className="text-center text-stone-400">
-                <div className="text-2xl mb-2">📷</div>
-                <p className="text-sm">Camera connecting...</p>
-                <p className="text-xs">Retrying in 2 seconds</p>
-              </div>
-            </div>
-          ) : (
-            <img
-              ref={imgRef}
-              src={currentSource}
-              alt={`${title} Feed`}
-              className="w-full aspect-video object-cover border border-stone-600 rounded transition-transform group-hover:scale-105"
-              onError={useMjpeg ? handleStreamError : handleImageError}
-              onLoad={handleImageLoad}
-            />
-          )}
-          
-          {/* Overlay for fullscreen hint */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-sm bg-black/50 px-3 py-1 rounded">
-              Click for live stream
-            </div>
-          </div>
-        </div>
+          <Maximize2 className="h-4 w-4" />
+        </Button>
         
-        <div className="mt-3 text-xs text-stone-500 text-center">
-          {feedMode} • Click for full stream
-          {streamError && <span className="text-amber-400"> (using snapshots)</span>}
+        {/* Camera info overlay matching Figma */}
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="bg-black/60 text-white px-3 py-2 rounded backdrop-blur-sm">
+            <h3 className="text-sm font-medium">{title}</h3>
+            <p className="text-xs text-white/80">{location}</p>
+          </div>
         </div>
       </div>
     </div>
