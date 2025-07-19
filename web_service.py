@@ -76,10 +76,18 @@ class NutflixWebService:
         try:
             # Initialize camera manager for video feeds
             self.logger.info("Initializing camera manager for video feeds...")
+            self.logger.info(f"Config being passed to CameraManager: {self.config}")
+            
+            # Extract camera config properly
+            camera_config = self.config.get('cameras', {})
+            self.logger.info(f"Camera config: {camera_config}")
+            
             self.camera_manager = CameraManager(
-                config=self.config,
+                config=camera_config,
                 status_callback=self._camera_status_callback
             )
+            
+            self.logger.info(f"CameraManager created: {type(self.camera_manager)}")
             
             # Check if cameras are available
             self.logger.info("Checking camera availability...")
@@ -95,6 +103,7 @@ class NutflixWebService:
                 self.logger.info("Camera manager initialized successfully")
             
             # Set camera manager in web app
+            self.logger.info("Setting camera manager in Flask app...")
             set_camera_manager(self.camera_manager)
             self.logger.info("Camera manager connected to web dashboard")
             

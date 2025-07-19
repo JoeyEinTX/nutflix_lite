@@ -323,6 +323,26 @@ def health_check():
         'camera_details': camera_details
     }
 
+@app.route('/debug/camera_manager_status')
+def debug_camera_manager_status():
+    """Debug endpoint to check camera manager status."""
+    global camera_manager
+    
+    status = {
+        'camera_manager_global': camera_manager is not None,
+        'camera_manager_type': str(type(camera_manager)) if camera_manager else 'None',
+    }
+    
+    if camera_manager:
+        try:
+            status['camera_info'] = camera_manager.get_camera_info()
+            status['critter_available'] = camera_manager.is_camera_available('critter_cam')
+            status['nut_available'] = camera_manager.is_camera_available('nut_cam')
+        except Exception as e:
+            status['error'] = str(e)
+    
+    return jsonify(status)
+
 @app.route('/debug/camera_test/<camera_name>')
 def debug_camera_test(camera_name):
     """Debug endpoint to test camera manager."""
@@ -544,8 +564,21 @@ def create_placeholder_frame(camera_name):
 def set_camera_manager(cm):
     """Set the camera manager instance for video feeds."""
     global camera_manager
+    logger.info(f"set_camera_manager called with: {type(cm) if cm else 'None'}")
     camera_manager = cm
-    logger.info("Camera manager set for web dashboard")
+    if cm:
+        logger.info("Camera manager successfully set for web dashboard")
+    else:
+        logger.warning("Camera manager set to None!")
+    
+    # Immediate test
+    try:
+        if camera_manager:
+            logger.info(f"Testing camera manager: {camera_manager.get_camera_info()}")
+        else:
+            logger.error("Camera manager is None after setting!")
+    except Exception as e:
+        logger.error(f"Error testing camera manager: {e}")
 
 def run_web_server(app_context=None, host='0.0.0.0', port=5000, debug=False):
     """
