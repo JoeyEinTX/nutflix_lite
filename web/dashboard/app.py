@@ -6,7 +6,7 @@ A minimal Flask + Flask-SocketIO web interface for monitoring and controlling th
 
 import os
 import threading
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, jsonify
 from flask_socketio import SocketIO, emit
 import eventlet
 
@@ -26,6 +26,16 @@ socketio = SocketIO(app,
                    cors_allowed_origins="*",
                    logger=False,
                    engineio_logger=False)
+
+# Global system status
+system_status = {
+    'cameras': {
+        'critter_cam': 'Initializing...',
+        'nut_cam': 'Initializing...'
+    },
+    'motion_detection': 'ready',
+    'system': 'active'
+}
 
 # Simple HTML template for the main page
 MAIN_PAGE_HTML = """
@@ -199,6 +209,40 @@ def handle_status_request():
         'cameras': 'initialized',
         'motion_detection': 'ready'
     })
+
+# REST API endpoints
+@app.route('/api/status', methods=['POST'])
+def update_status():
+    """Receive status updates from the main camera system."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        logger.debug(f"Received status update: {data}")
+        
+        # Update global status
+        global system_status
+        if 'cameras' in data:
+            system_status['cameras'].update(data['cameras'])
+        if 'motion_detection' in data:
+            system_status['motion_detection'] = data['motion_detection']
+        if 'system' in data:
+            system_status['system'] = data['system']
+        
+        # Emit status update to all connected clients
+        socketio.emit('camera_status', system_status)
+        
+        return jsonify({'status': 'success'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error updating status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Get current system status."""
+    return jsonify(system_status)
 
 def run_web_server(app_context=None, host='0.0.0.0', port=5000, debug=False):
     """

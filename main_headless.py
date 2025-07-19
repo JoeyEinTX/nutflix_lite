@@ -16,6 +16,7 @@ from nutflix_common.config_loader import load_config
 from nutflix_common.motion_utils import MotionDetector, MotionConfig
 from nutflix_common.logger import get_logger, configure_from_config
 from camera_manager import CameraManager
+from status_manager import update_camera_status
 
 class NutflixHeadless:
     """Headless version of Nutflix Lite for Raspberry Pi deployment."""
@@ -70,7 +71,12 @@ class NutflixHeadless:
     def _initialize_camera_manager(self):
         """Initialize the camera manager."""
         try:
-            self.camera_manager = CameraManager(self.camera_config)
+            # Define status callback for camera updates
+            def camera_status_callback(camera_name: str, status: str):
+                self.logger.info(f"{camera_name} status update: {status}")
+                update_camera_status(camera_name, status)
+            
+            self.camera_manager = CameraManager(self.camera_config, camera_status_callback)
             camera_info = self.camera_manager.get_camera_info()
             self.logger.info(f"Camera system: {camera_info['critter_cam']['type']} mode")
             self.logger.info(f"CritterCam: {'✓' if camera_info['critter_cam']['available'] else '✗'}")

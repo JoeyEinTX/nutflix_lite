@@ -31,7 +31,7 @@ class CameraManager:
     Uses libcamera bridge on Raspberry Pi for better camera compatibility.
     """
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, status_callback=None):
         """
         Initialize the camera manager.
         
@@ -39,10 +39,12 @@ class CameraManager:
             config: Dictionary containing camera configuration:
                 - critter_cam_id: Camera ID for CritterCam (default: 0)
                 - nut_cam_id: Camera ID for NutCam (default: 1)
+            status_callback: Optional callback function for status updates
         """
         self.config = config
         self.critter_cam_id = config.get('critter_cam_id', 0)
         self.nut_cam_id = config.get('nut_cam_id', 1)
+        self.status_callback = status_callback
         
         # Camera capture objects
         self._critter_capture = None
@@ -110,8 +112,15 @@ class CameraManager:
             if not self._critter_capture.start():
                 raise RuntimeError(f"Failed to start CritterCam with ID {self.critter_cam_id}")
             logger.info(f"CritterCam initialized with libcamera-still (ID: {self.critter_cam_id})")
+            
+            # Emit status update for CritterCam
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Ready')
+                
         except Exception as e:
             logger.error(f"CritterCam libcamera initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Error')
             raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
         
         # Initialize NutCam
@@ -120,8 +129,15 @@ class CameraManager:
             if not self._nut_capture.start():
                 raise RuntimeError(f"Failed to start NutCam with ID {self.nut_cam_id}")
             logger.info(f"NutCam initialized with libcamera-still (ID: {self.nut_cam_id})")
+            
+            # Emit status update for NutCam
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Ready')
+                
         except Exception as e:
             logger.error(f"NutCam libcamera initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Error')
             raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
     
     def _initialize_opencv(self):
@@ -132,8 +148,15 @@ class CameraManager:
             if not self._critter_capture.isOpened():
                 raise RuntimeError(f"Failed to open CritterCam with ID {self.critter_cam_id}")
             logger.info(f"CritterCam initialized successfully (ID: {self.critter_cam_id})")
+            
+            # Emit status update for CritterCam
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Ready')
+                
         except Exception as e:
             logger.error(f"CritterCam initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Error')
             raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
         
         # Initialize NutCam
@@ -142,8 +165,15 @@ class CameraManager:
             if not self._nut_capture.isOpened():
                 raise RuntimeError(f"Failed to open NutCam with ID {self.nut_cam_id}")
             logger.info(f"NutCam initialized successfully (ID: {self.nut_cam_id})")
+            
+            # Emit status update for NutCam
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Ready')
+                
         except Exception as e:
             logger.error(f"NutCam initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Error')
             raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
     
     def read_frames(self) -> Dict[str, Optional[Any]]:
