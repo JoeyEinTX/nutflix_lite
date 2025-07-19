@@ -49,8 +49,9 @@ class LibCameraCapture:
         """Start the libcamera capture process."""
         try:
             # Create libcamera-vid command for continuous capture
+            # Use absolute path to ensure systemd can find it
             cmd = [
-                'libcamera-vid',
+                '/usr/bin/libcamera-vid',
                 '--camera', str(self.camera_id),
                 '--width', str(self.width),
                 '--height', str(self.height),
