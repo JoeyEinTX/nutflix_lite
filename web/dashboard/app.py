@@ -10,7 +10,6 @@ import sys
 import time
 from flask import Flask, render_template_string, request, jsonify, Response
 from flask_socketio import SocketIO, emit
-import eventlet
 
 # Add the parent directory to the path to import camera_manager
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))

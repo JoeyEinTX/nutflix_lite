@@ -12,7 +12,14 @@ from typing import Dict, Optional, Any
 # Use nutflix_common logger
 from nutflix_common.logger import get_camera_logger
 
-# Import libcamera bridge for Raspberry Pi
+# Try to import Picamera2 for modern Pi camera support
+try:
+    from picamera2 import Picamera2
+    PICAMERA2_AVAILABLE = True
+except ImportError:
+    PICAMERA2_AVAILABLE = False
+
+# Import libcamera bridge for Raspberry Pi (fallback)
 try:
     from libcamera_still_bridge import LibCameraStillCapture
     LIBCAMERA_AVAILABLE = True
@@ -97,13 +104,59 @@ class CameraManager:
         """Initialize hardware camera capture objects."""
         logger.info("Initializing hardware cameras")
         
-        if self._use_libcamera:
-            logger.info("Using libcamera bridge for Raspberry Pi cameras")
+        # Prefer Picamera2 on Raspberry Pi if available
+        if self._use_libcamera and PICAMERA2_AVAILABLE:
+            logger.info("Using Picamera2 for Raspberry Pi cameras")
+            self._initialize_picamera2()
+        elif self._use_libcamera and LIBCAMERA_AVAILABLE:
+            logger.info("Using libcamera-still bridge for Raspberry Pi cameras")
             self._initialize_libcamera()
         else:
             logger.info("Using OpenCV VideoCapture")
             self._initialize_opencv()
     
+    def _initialize_picamera2(self):
+        """Initialize cameras using Picamera2 (modern Pi camera library)."""
+        # Initialize CritterCam
+        try:
+            self._critter_capture = Picamera2(camera_num=self.critter_cam_id)
+            config = self._critter_capture.create_preview_configuration(
+                main={"size": (640, 480), "format": "RGB888"}
+            )
+            self._critter_capture.configure(config)
+            self._critter_capture.start()
+            logger.info(f"CritterCam initialized with Picamera2 (camera_num: {self.critter_cam_id})")
+            
+            # Emit status update for CritterCam
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Ready')
+                
+        except Exception as e:
+            logger.error(f"CritterCam Picamera2 initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('critter_cam', 'Error')
+            raise RuntimeError(f"Cannot initialize CritterCam (camera_num: {self.critter_cam_id}): {e}")
+        
+        # Initialize NutCam
+        try:
+            self._nut_capture = Picamera2(camera_num=self.nut_cam_id)
+            config = self._nut_capture.create_preview_configuration(
+                main={"size": (640, 480), "format": "RGB888"}
+            )
+            self._nut_capture.configure(config)
+            self._nut_capture.start()
+            logger.info(f"NutCam initialized with Picamera2 (camera_num: {self.nut_cam_id})")
+            
+            # Emit status update for NutCam
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Ready')
+                
+        except Exception as e:
+            logger.error(f"NutCam Picamera2 initialization failed: {e}")
+            if self.status_callback:
+                self.status_callback('nut_cam', 'Error')
+            raise RuntimeError(f"Cannot initialize NutCam (camera_num: {self.nut_cam_id}): {e}")
+
     def _initialize_libcamera(self):
         """Initialize cameras using libcamera-still bridge."""
         # Initialize CritterCam
@@ -190,10 +243,10 @@ class CameraManager:
         }
         
         # Read CritterCam frame
-        if self._critter_capture and self._critter_capture.isOpened():
+        if self._critter_capture:
             try:
-                ret, frame = self._critter_capture.read()
-                if ret and frame is not None:
+                frame = self._read_camera_frame(self._critter_capture, 'critter_cam')
+                if frame is not None:
                     frames['critter_cam'] = frame
                 else:
                     logger.warning("CritterCam frame read failed")
@@ -201,10 +254,10 @@ class CameraManager:
                 logger.error(f"Error reading CritterCam frame: {e}")
         
         # Read NutCam frame
-        if self._nut_capture and self._nut_capture.isOpened():
+        if self._nut_capture:
             try:
-                ret, frame = self._nut_capture.read()
-                if ret and frame is not None:
+                frame = self._read_camera_frame(self._nut_capture, 'nut_cam')
+                if frame is not None:
                     frames['nut_cam'] = frame
                 else:
                     logger.warning("NutCam frame read failed")
@@ -213,13 +266,51 @@ class CameraManager:
         
         return frames
     
+    def _read_camera_frame(self, capture, camera_name: str) -> Optional[Any]:
+        """
+        Read a frame from a camera capture object, handling different camera types.
+        
+        Args:
+            capture: Camera capture object (Picamera2, LibCameraStillCapture, or cv2.VideoCapture)
+            camera_name: Name of the camera for logging
+            
+        Returns:
+            Frame as numpy array or None if read failed
+        """
+        try:
+            # Handle Picamera2
+            if PICAMERA2_AVAILABLE and hasattr(capture, 'capture_array'):
+                frame = capture.capture_array()
+                return frame
+            
+            # Handle libcamera-still bridge 
+            elif hasattr(capture, 'capture'):
+                frame = capture.capture()
+                return frame
+            
+            # Handle OpenCV VideoCapture
+            elif hasattr(capture, 'read') and hasattr(capture, 'isOpened'):
+                if capture.isOpened():
+                    ret, frame = capture.read()
+                    if ret and frame is not None:
+                        return frame
+                return None
+            
+            else:
+                logger.warning(f"Unknown camera capture type for {camera_name}: {type(capture)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error reading frame from {camera_name}: {e}")
+            return None
+    
     def release(self):
         """Release all camera capture objects and clean up resources."""
         logger.info("Releasing camera resources")
         
         if self._critter_capture:
             try:
-                self._critter_capture.release()
+                self._release_camera(self._critter_capture, 'CritterCam')
                 logger.info("CritterCam released successfully")
             except Exception as e:
                 logger.error(f"Error releasing CritterCam: {e}")
@@ -228,12 +319,45 @@ class CameraManager:
         
         if self._nut_capture:
             try:
-                self._nut_capture.release()
+                self._release_camera(self._nut_capture, 'NutCam')
                 logger.info("NutCam released successfully")
             except Exception as e:
                 logger.error(f"Error releasing NutCam: {e}")
             finally:
                 self._nut_capture = None
+    
+    def _release_camera(self, capture, camera_name: str):
+        """
+        Release a camera capture object, handling different camera types.
+        
+        Args:
+            capture: Camera capture object to release
+            camera_name: Name of camera for logging
+        """
+        try:
+            # Handle Picamera2
+            if PICAMERA2_AVAILABLE and hasattr(capture, 'close'):
+                if hasattr(capture, 'started') and capture.started:
+                    capture.stop()
+                capture.close()
+                logger.debug(f"{camera_name} Picamera2 stopped and closed")
+            
+            # Handle libcamera-still bridge
+            elif hasattr(capture, 'stop'):
+                capture.stop()
+                logger.debug(f"{camera_name} libcamera-still stopped")
+            
+            # Handle OpenCV VideoCapture  
+            elif hasattr(capture, 'release'):
+                capture.release()
+                logger.debug(f"{camera_name} OpenCV VideoCapture released")
+            
+            else:
+                logger.warning(f"Unknown camera capture type for {camera_name}: {type(capture)}")
+                
+        except Exception as e:
+            logger.error(f"Error releasing {camera_name}: {e}")
+            raise
     
     def is_camera_available(self, camera_name: str) -> bool:
         """
@@ -245,12 +369,38 @@ class CameraManager:
         Returns:
             True if camera is available, False otherwise
         """
+        capture = None
         if camera_name == 'critter_cam':
-            return self._critter_capture is not None and self._critter_capture.isOpened()
+            capture = self._critter_capture
         elif camera_name == 'nut_cam':
-            return self._nut_capture is not None and self._nut_capture.isOpened()
+            capture = self._nut_capture
         else:
             logger.warning(f"Unknown camera name: {camera_name}")
+            return False
+        
+        if capture is None:
+            return False
+        
+        # Handle different camera types
+        try:
+            # Picamera2 check
+            if PICAMERA2_AVAILABLE and hasattr(capture, 'started'):
+                return capture.started
+            
+            # LibCameraStillCapture check  
+            elif hasattr(capture, 'is_running'):
+                return capture.is_running()
+            
+            # OpenCV VideoCapture check
+            elif hasattr(capture, 'isOpened'):
+                return capture.isOpened()
+            
+            else:
+                logger.warning(f"Unknown camera capture type for {camera_name}: {type(capture)}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error checking camera availability for {camera_name}: {e}")
             return False
     
     def get_camera_info(self) -> Dict[str, Any]:
@@ -293,16 +443,21 @@ class CameraManager:
                 logger.warning(f"Unknown camera name: {camera_name}")
                 return None
             
-            if capture is None or not capture.isOpened():
+            if capture is None:
                 return None
             
-            # Get the latest frame
-            ret, frame = capture.read()
-            if not ret or frame is None:
+            # Get the latest frame using generic method
+            frame = self._read_camera_frame(capture, camera_name)
+            if frame is None:
                 return None
             
-            # Convert BGR to RGB for better web display
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert frame to RGB format if needed (Picamera2 already provides RGB888)
+            if PICAMERA2_AVAILABLE and hasattr(capture, 'capture_array'):
+                # Picamera2 frame is already in RGB format
+                frame_rgb = frame
+            else:
+                # Convert BGR to RGB for OpenCV and libcamera-still
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
             # Encode frame to JPEG
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]  # 85% quality
