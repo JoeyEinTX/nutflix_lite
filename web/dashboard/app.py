@@ -448,63 +448,16 @@ def video_feed(camera_name):
         logger.error(f"Camera manager not available for {camera_name}")
         return "Camera manager not available", 503
     
-    # Check if specific camera is available
-    if not camera_manager.is_camera_available(camera_name):
-        logger.warning(f"Camera {camera_name} is not available")
-        return f"Camera {camera_name} not available", 503
-    
-    def generate_frames():
-        """Generate frames for MJPEG streaming."""
-        frame_count = 0
-        consecutive_failures = 0
-        max_failures = 50  # Stop after 50 consecutive failures
-        
-        while consecutive_failures < max_failures:
-            try:
-                frame_count += 1
-                
-                # Get frame from camera manager
-                frame_bytes = camera_manager.get_latest_frame(camera_name)
-                
-                if frame_bytes is not None:
-                    consecutive_failures = 0  # Reset failure counter
-                    
-                    # Log success occasionally
-                    if frame_count % 100 == 0:
-                        logger.debug(f"Serving frame {frame_count} for {camera_name}, size: {len(frame_bytes)} bytes")
-                    
-                    # Return the frame in MJPEG format
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-                else:
-                    consecutive_failures += 1
-                    
-                    # Log when no frame available
-                    if consecutive_failures % 10 == 0:
-                        logger.warning(f"No frame available from {camera_name} (failure {consecutive_failures})")
-                    
-                    # Return placeholder if no frame available
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + 
-                           create_placeholder_frame(camera_name) + b'\r\n')
-                
-                # Limit to ~10 FPS
-                time.sleep(0.1)
-                
-            except Exception as e:
-                consecutive_failures += 1
-                logger.error(f"Error in video feed for {camera_name} (failure {consecutive_failures}): {e}")
-                
-                # Return error placeholder
+    def generate():
+        while True:
+            frame = camera_manager.get_latest_frame(camera_name)
+            if frame:
                 yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + 
-                       create_placeholder_frame(f"{camera_name} ERROR") + b'\r\n')
-                time.sleep(1)  # Wait longer on error
-        
-        logger.error(f"Video feed for {camera_name} stopped after {max_failures} consecutive failures")
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            else:
+                time.sleep(0.1)
     
-    return Response(generate_frames(),
-                   mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def create_placeholder_frame(camera_name):
     """Create a simple placeholder image when camera is not available."""
