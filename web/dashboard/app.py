@@ -149,18 +149,24 @@ MAIN_PAGE_HTML = """
         <div class="camera-grid">
             <div class="camera-feed">
                 <h3>🐿️ Critter Cam</h3>
-                <img id="critter-feed" class="camera-image" src="/video_feed/critter_cam" alt="Critter Camera Feed">
+                <a href="/video_feed/critter_cam" target="_blank" title="Click to open live stream">
+                    <img id="critter-feed" class="camera-image" src="/snapshot/critter_cam" alt="Critter Camera Preview">
+                </a>
                 <div class="camera-status">
                     Status: <span id="critter-status" class="status-initializing">Initializing...</span>
                 </div>
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">Click image for live stream</p>
             </div>
             
             <div class="camera-feed">
                 <h3>🥜 Nut Cam</h3>
-                <img id="nut-feed" class="camera-image" src="/video_feed/nut_cam" alt="Nut Camera Feed">
+                <a href="/video_feed/nut_cam" target="_blank" title="Click to open live stream">
+                    <img id="nut-feed" class="camera-image" src="/snapshot/nut_cam" alt="Nut Camera Preview">
+                </a>
                 <div class="camera-status">
                     Status: <span id="nut-status" class="status-initializing">Initializing...</span>
                 </div>
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">Click image for live stream</p>
             </div>
         </div>
         
@@ -260,24 +266,35 @@ MAIN_PAGE_HTML = """
             }
         }
         
-        // Handle image load errors (fallback for camera feeds)
+        // Handle image load errors and refresh snapshots
         document.addEventListener('DOMContentLoaded', function() {
             const critterFeed = document.getElementById('critter-feed');
             const nutFeed = document.getElementById('nut-feed');
             
+            // Refresh snapshot every 2 seconds for live preview
+            function refreshSnapshots() {
+                const timestamp = new Date().getTime();
+                critterFeed.src = '/snapshot/critter_cam?' + timestamp;
+                nutFeed.src = '/snapshot/nut_cam?' + timestamp;
+            }
+            
+            // Handle individual snapshot errors
             critterFeed.onerror = function() {
-                console.log('Critter cam feed error, retrying...');
+                console.log('Critter cam snapshot error, retrying...');
                 setTimeout(() => {
-                    this.src = '/video_feed/critter_cam?' + new Date().getTime();
+                    this.src = '/snapshot/critter_cam?' + new Date().getTime();
                 }, 2000);
             };
             
             nutFeed.onerror = function() {
-                console.log('Nut cam feed error, retrying...');
+                console.log('Nut cam snapshot error, retrying...');
                 setTimeout(() => {
-                    this.src = '/video_feed/nut_cam?' + new Date().getTime();
+                    this.src = '/snapshot/nut_cam?' + new Date().getTime();
                 }, 2000);
             };
+            
+            // Auto-refresh snapshots for live preview
+            setInterval(refreshSnapshots, 2000);
         });
         
         // Handle motion detection events (for future expansion)
