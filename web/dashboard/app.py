@@ -459,6 +459,26 @@ def video_feed(camera_name):
     
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/snapshot/<camera_name>')
+def snapshot(camera_name):
+    """
+    Snapshot route that returns the latest JPEG frame from a given camera.
+    This is used to show still images (e.g., dashboard preview).
+    
+    Args:
+        camera_name: Either 'critter_cam' or 'nut_cam'
+    """
+    if camera_name not in ['critter_cam', 'nut_cam']:
+        return "Invalid camera name", 404
+    
+    if camera_manager is None:
+        return "Camera manager not available", 503
+    
+    frame = camera_manager.get_latest_frame(camera_name)
+    if frame:
+        return Response(frame, mimetype='image/jpeg')
+    return "Camera not ready", 503
+
 def create_placeholder_frame(camera_name):
     """Create a simple placeholder image when camera is not available."""
     try:
