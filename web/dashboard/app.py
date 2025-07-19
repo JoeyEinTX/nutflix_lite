@@ -526,13 +526,14 @@ def run_web_server(app_context=None, host='0.0.0.0', port=5000, debug=False):
         app.config['NUTFLIX_CONTEXT'] = app_context
     
     try:
-        # Use eventlet WSGI server for better performance with SocketIO
+        # Use threading WSGI server for better performance with SocketIO and MJPEG
         socketio.run(app, 
                     host=host, 
                     port=port, 
                     debug=debug,
                     use_reloader=False,  # Disable reloader in production
-                    log_output=False)    # Disable default Flask logging
+                    log_output=False,    # Disable default Flask logging
+                    allow_unsafe_werkzeug=True)  # Allow Werkzeug for local production
     except Exception as e:
         logger.error(f"Failed to start web server: {e}")
         raise
