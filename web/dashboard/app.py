@@ -179,8 +179,14 @@ MAIN_PAGE_HTML = """
     </div>
 
     <script>
-        // Initialize SocketIO connection
-        const socket = io();
+        // Initialize SocketIO connection with explicit v4 options
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            upgrade: true,
+            rememberUpgrade: true,
+            timeout: 5000,
+            forceNew: true
+        });
         
         // Connection status elements
         const connectionStatus = document.getElementById('connection-status');
@@ -195,6 +201,12 @@ MAIN_PAGE_HTML = """
         socket.on('disconnect', function() {
             console.log('Disconnected from Nutflix server');
             connectionStatus.textContent = '🔴 WebSocket: Disconnected';
+            connectionStatus.className = 'connection-status disconnected';
+        });
+        
+        socket.on('connect_error', function(error) {
+            console.error('Connection error:', error);
+            connectionStatus.textContent = '🔴 WebSocket: Connection Error';
             connectionStatus.className = 'connection-status disconnected';
         });
         
