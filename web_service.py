@@ -81,6 +81,19 @@ class NutflixWebService:
                 status_callback=self._camera_status_callback
             )
             
+            # Check if cameras are available
+            self.logger.info("Checking camera availability...")
+            critter_available = self.camera_manager.is_camera_available('critter_cam')
+            nut_available = self.camera_manager.is_camera_available('nut_cam')
+            
+            self.logger.info(f"Camera status - Critter: {'Available' if critter_available else 'Unavailable'}")
+            self.logger.info(f"Camera status - Nut: {'Available' if nut_available else 'Unavailable'}")
+            
+            if not (critter_available or nut_available):
+                self.logger.warning("No cameras are available - web service will serve placeholder feeds")
+            else:
+                self.logger.info("Camera manager initialized successfully")
+            
             # Set camera manager in web app
             set_camera_manager(self.camera_manager)
             self.logger.info("Camera manager connected to web dashboard")
