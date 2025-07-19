@@ -14,7 +14,7 @@ from nutflix_common.logger import get_camera_logger
 
 # Import libcamera bridge for Raspberry Pi
 try:
-    from libcamera_bridge import LibCameraCapture
+    from libcamera_still_bridge import LibCameraStillCapture
     LIBCAMERA_AVAILABLE = True
 except ImportError:
     LIBCAMERA_AVAILABLE = False
@@ -103,23 +103,23 @@ class CameraManager:
             self._initialize_opencv()
     
     def _initialize_libcamera(self):
-        """Initialize cameras using libcamera bridge."""
+        """Initialize cameras using libcamera-still bridge."""
         # Initialize CritterCam
         try:
-            self._critter_capture = LibCameraCapture(self.critter_cam_id, width=640, height=480, fps=30)
+            self._critter_capture = LibCameraStillCapture(self.critter_cam_id, width=640, height=480)
             if not self._critter_capture.start():
                 raise RuntimeError(f"Failed to start CritterCam with ID {self.critter_cam_id}")
-            logger.info(f"CritterCam initialized with libcamera (ID: {self.critter_cam_id})")
+            logger.info(f"CritterCam initialized with libcamera-still (ID: {self.critter_cam_id})")
         except Exception as e:
             logger.error(f"CritterCam libcamera initialization failed: {e}")
             raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
         
         # Initialize NutCam
         try:
-            self._nut_capture = LibCameraCapture(self.nut_cam_id, width=640, height=480, fps=30)
+            self._nut_capture = LibCameraStillCapture(self.nut_cam_id, width=640, height=480)
             if not self._nut_capture.start():
                 raise RuntimeError(f"Failed to start NutCam with ID {self.nut_cam_id}")
-            logger.info(f"NutCam initialized with libcamera (ID: {self.nut_cam_id})")
+            logger.info(f"NutCam initialized with libcamera-still (ID: {self.nut_cam_id})")
         except Exception as e:
             logger.error(f"NutCam libcamera initialization failed: {e}")
             raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
