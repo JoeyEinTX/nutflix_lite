@@ -273,6 +273,51 @@ class CameraManager:
             }
         }
     
+    def get_latest_frame(self, camera_name: str) -> Optional[bytes]:
+        """
+        Get the latest frame from the specified camera as JPEG bytes.
+        
+        Args:
+            camera_name: Either 'critter_cam' or 'nut_cam'
+            
+        Returns:
+            JPEG bytes if frame is available, None otherwise
+        """
+        try:
+            capture = None
+            if camera_name == 'critter_cam':
+                capture = self._critter_capture
+            elif camera_name == 'nut_cam':
+                capture = self._nut_capture
+            else:
+                logger.warning(f"Unknown camera name: {camera_name}")
+                return None
+            
+            if capture is None or not capture.isOpened():
+                return None
+            
+            # Get the latest frame
+            ret, frame = capture.read()
+            if not ret or frame is None:
+                return None
+            
+            # Convert BGR to RGB for better web display
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Encode frame to JPEG
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]  # 85% quality
+            ret, buffer = cv2.imencode('.jpg', frame_rgb, encode_param)
+            
+            if ret:
+                return buffer.tobytes()
+            else:
+                logger.warning(f"Failed to encode frame from {camera_name}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting latest frame from {camera_name}: {e}")
+            return None
+    
     def cleanup(self):
         """Clean up resources and release cameras."""
         logger.info("Cleaning up camera resources...")

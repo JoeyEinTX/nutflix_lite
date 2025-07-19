@@ -6,15 +6,23 @@ A minimal Flask + Flask-SocketIO web interface for monitoring and controlling th
 
 import os
 import threading
-from flask import Flask, render_template_string, request, jsonify
+import sys
+import time
+from flask import Flask, render_template_string, request, jsonify, Response
 from flask_socketio import SocketIO, emit
 import eventlet
+
+# Add the parent directory to the path to import camera_manager
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Use nutflix_common logger
 from nutflix_common.logger import get_logger
 
 # Get logger for web subsystem
 logger = get_logger("web")
+
+# Global camera manager instance (will be set by main app)
+camera_manager = None
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -82,6 +90,43 @@ MAIN_PAGE_HTML = """
             background-color: #5d1e1e;
             color: #f44336;
         }
+        .camera-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .camera-feed {
+            background-color: #222;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .camera-feed h3 {
+            margin-top: 0;
+            color: #0f0;
+        }
+        .camera-image {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #444;
+            border-radius: 4px;
+            background-color: #111;
+        }
+        .camera-status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .status-ready {
+            color: #4caf50;
+        }
+        .status-initializing {
+            color: #ff9800;
+        }
+        .status-error {
+            color: #f44336;
+        }
     </style>
 </head>
 <body>
@@ -102,10 +147,28 @@ MAIN_PAGE_HTML = """
             </div>
         </div>
         
+        <div class="camera-grid">
+            <div class="camera-feed">
+                <h3>🐿️ Critter Cam</h3>
+                <img id="critter-feed" class="camera-image" src="/video_feed/critter_cam" alt="Critter Camera Feed">
+                <div class="camera-status">
+                    Status: <span id="critter-status" class="status-initializing">Initializing...</span>
+                </div>
+            </div>
+            
+            <div class="camera-feed">
+                <h3>🥜 Nut Cam</h3>
+                <img id="nut-feed" class="camera-image" src="/video_feed/nut_cam" alt="Nut Camera Feed">
+                <div class="camera-status">
+                    Status: <span id="nut-status" class="status-initializing">Initializing...</span>
+                </div>
+            </div>
+        </div>
+        
         <div class="status">
             <h2>Camera System</h2>
-            <p><strong>CritterCam:</strong> <span id="critter-status">Initializing...</span></p>
-            <p><strong>NutCam:</strong> <span id="nut-status">Initializing...</span></p>
+            <p><strong>CritterCam:</strong> <span id="critter-status-text">Initializing...</span></p>
+            <p><strong>NutCam:</strong> <span id="nut-status-text">Initializing...</span></p>
         </div>
         
         <div class="status">
@@ -144,7 +207,66 @@ MAIN_PAGE_HTML = """
         // Handle camera status updates (for future expansion)
         socket.on('camera_status', function(data) {
             console.log('Camera status:', data);
-            // Update camera status in UI
+            
+            // Update camera status displays
+            if (data.cameras) {
+                // Update critter cam status
+                if (data.cameras.critter_cam) {
+                    updateCameraStatus('critter', data.cameras.critter_cam);
+                }
+                
+                // Update nut cam status  
+                if (data.cameras.nut_cam) {
+                    updateCameraStatus('nut', data.cameras.nut_cam);
+                }
+            }
+        });
+        
+        function updateCameraStatus(camera, status) {
+            // Update status text elements
+            const statusElement = document.getElementById(camera + '-status');
+            const statusTextElement = document.getElementById(camera + '-status-text');
+            
+            if (statusElement) {
+                statusElement.textContent = status;
+                // Update CSS class based on status
+                statusElement.className = getStatusClass(status);
+            }
+            
+            if (statusTextElement) {
+                statusTextElement.textContent = status;
+            }
+        }
+        
+        function getStatusClass(status) {
+            const lowerStatus = status.toLowerCase();
+            if (lowerStatus.includes('ready') || lowerStatus.includes('active')) {
+                return 'status-ready';
+            } else if (lowerStatus.includes('initializing') || lowerStatus.includes('starting')) {
+                return 'status-initializing';
+            } else {
+                return 'status-error';
+            }
+        }
+        
+        // Handle image load errors (fallback for camera feeds)
+        document.addEventListener('DOMContentLoaded', function() {
+            const critterFeed = document.getElementById('critter-feed');
+            const nutFeed = document.getElementById('nut-feed');
+            
+            critterFeed.onerror = function() {
+                console.log('Critter cam feed error, retrying...');
+                setTimeout(() => {
+                    this.src = '/video_feed/critter_cam?' + new Date().getTime();
+                }, 2000);
+            };
+            
+            nutFeed.onerror = function() {
+                console.log('Nut cam feed error, retrying...');
+                setTimeout(() => {
+                    this.src = '/video_feed/nut_cam?' + new Date().getTime();
+                }, 2000);
+            };
         });
         
         // Handle motion detection events (for future expansion)
@@ -243,6 +365,96 @@ def update_status():
 def get_status():
     """Get current system status."""
     return jsonify(system_status)
+
+@app.route('/video_feed/<camera_name>')
+def video_feed(camera_name):
+    """
+    Video streaming route. Returns an MJPEG stream for the specified camera.
+    
+    Args:
+        camera_name: Either 'critter_cam' or 'nut_cam'
+    """
+    if camera_name not in ['critter_cam', 'nut_cam']:
+        return "Invalid camera name", 404
+    
+    def generate_frames():
+        """Generate frames for MJPEG streaming."""
+        while True:
+            try:
+                # Get frame from camera manager
+                if camera_manager is None:
+                    # Return a simple placeholder frame
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + 
+                           create_placeholder_frame(camera_name) + b'\r\n')
+                    time.sleep(0.1)
+                    continue
+                
+                frame_bytes = camera_manager.get_latest_frame(camera_name)
+                
+                if frame_bytes is not None:
+                    # Return the frame in MJPEG format
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                else:
+                    # Return placeholder if no frame available
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + 
+                           create_placeholder_frame(camera_name) + b'\r\n')
+                
+                # Limit to ~10 FPS
+                time.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"Error in video feed for {camera_name}: {e}")
+                time.sleep(1)  # Wait longer on error
+    
+    return Response(generate_frames(),
+                   mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def create_placeholder_frame(camera_name):
+    """Create a simple placeholder image when camera is not available."""
+    try:
+        import cv2
+        import numpy as np
+        
+        # Create a simple 640x480 placeholder image
+        img = np.zeros((480, 640, 3), dtype=np.uint8)
+        img.fill(32)  # Dark gray background
+        
+        # Add text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        text = f"{camera_name.replace('_', ' ').title()}"
+        status_text = "Initializing..."
+        
+        # Calculate text size and position
+        text_size = cv2.getTextSize(text, font, 1, 2)[0]
+        status_size = cv2.getTextSize(status_text, font, 0.7, 2)[0]
+        
+        # Center the text
+        text_x = (640 - text_size[0]) // 2
+        text_y = (480 - text_size[1]) // 2 - 20
+        status_x = (640 - status_size[0]) // 2
+        status_y = text_y + 40
+        
+        # Draw text
+        cv2.putText(img, text, (text_x, text_y), font, 1, (0, 255, 0), 2)
+        cv2.putText(img, status_text, (status_x, status_y), font, 0.7, (0, 255, 255), 2)
+        
+        # Encode to JPEG
+        _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return buffer.tobytes()
+        
+    except Exception as e:
+        logger.error(f"Error creating placeholder frame: {e}")
+        # Return minimal JPEG placeholder
+        return b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x01\xe0\x02\x80\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A\x06\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xf7\xfa(\xa2\x80\x0f\xff\xd9'
+
+def set_camera_manager(cm):
+    """Set the camera manager instance for video feeds."""
+    global camera_manager
+    camera_manager = cm
+    logger.info("Camera manager set for web dashboard")
 
 def run_web_server(app_context=None, host='0.0.0.0', port=5000, debug=False):
     """
