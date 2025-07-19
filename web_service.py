@@ -130,10 +130,11 @@ class NutflixWebService:
             time.sleep(2)
             
             # Run web server on main thread (required for SocketIO)
+            # Using port 5050 to avoid conflicts with other services using port 5000
             run_web_server(
                 app_context=self,
                 host='0.0.0.0',
-                port=5000,
+                port=5050,
                 debug=False
             )
         except Exception as e:
