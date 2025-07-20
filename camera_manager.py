@@ -56,6 +56,7 @@ class CameraManager:
 
     def _initialize_picamera2(self):
         try:
+            # Initialize first camera
             self._critter_capture = Picamera2(camera_num=self.critter_cam_id)
             config0 = self._critter_capture.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
             self._critter_capture.configure(config0)
@@ -65,6 +66,10 @@ class CameraManager:
             if self.status_callback:
                 self.status_callback('critter_cam', 'Ready')
 
+            # Add delay before initializing second camera
+            time.sleep(1)
+
+            # Initialize second camera
             self._nut_capture = Picamera2(camera_num=self.nut_cam_id)
             config1 = self._nut_capture.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
             self._nut_capture.configure(config1)
