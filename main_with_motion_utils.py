@@ -115,7 +115,8 @@ class NutflixLiteGUI:
             'app_name': 'Nutflix Lite',
             'cameras': {
                 'critter_cam_id': 0,
-                'nut_cam_id': 1
+                'nut_cam_id': 1,
+                'debug_mode': True
             },
             'motion_detection': {
                 'threshold': 500,

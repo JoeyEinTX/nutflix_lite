@@ -6,166 +6,228 @@ Handles dual camera inputs for production Raspberry Pi hardware.
 
 import cv2
 import time
-import threading
 from typing import Dict, Optional, Any
 
+# Use nutflix_common logger
 from nutflix_common.logger import get_camera_logger
 
-try:
-    from picamera2 import Picamera2
-    PICAMERA2_AVAILABLE = True
-except (ImportError, ValueError):
-    PICAMERA2_AVAILABLE = False
-
-try:
-    from libcamera_still_bridge import LibCameraStillCapture
-    LIBCAMERA_AVAILABLE = True
-except ImportError:
-    LIBCAMERA_AVAILABLE = False
-
+# Get logger for this module
 logger = get_camera_logger()
 
+
 class CameraManager:
-    def __init__(self, config: dict, status_callback=None):
+    """
+    Manages camera capture operations for production Raspberry Pi hardware.
+    
+    This class handles dual camera setup with real hardware cameras.
+    """
+    
+    def __init__(self, config: dict):
+        """
+        Initialize the camera manager.
+        
+        Args:
+            config: Dictionary containing camera configuration:
+                - critter_cam_id: Camera ID for CritterCam (default: 0)
+                - nut_cam_id: Camera ID for NutCam (default: 1)
+        """
         self.config = config
         self.critter_cam_id = config.get('critter_cam_id', 0)
         self.nut_cam_id = config.get('nut_cam_id', 1)
-        self.status_callback = status_callback
-
+        
+        # Camera capture objects
         self._critter_capture = None
         self._nut_capture = None
-
-        self._latest_frames = {'critter_cam': None, 'nut_cam': None}
-        self._capture_threads = {}
-
-        # Always use Picamera2 for dual camera setup
-        self._initialize_cameras()
-
-    def _initialize_cameras(self):
-        """Initialize cameras using Picamera2 only."""
-        if PICAMERA2_AVAILABLE:
-            self._initialize_picamera2()
-        else:
-            raise RuntimeError("Picamera2 is required but not available. Please install picamera2.")
         
-        # Fallback methods removed - we always use Picamera2 for Pi dual camera setup
-        # elif self._use_libcamera and LIBCAMERA_AVAILABLE:
-        #     self._initialize_libcamera()
-        # else:
-        #     self._initialize_opencv()
-
-    def _initialize_picamera2(self):
+        logger.info("Initializing CameraManager for hardware cameras")
+        
+        # Initialize cameras
+        self._initialize_cameras()
+    
+    def _initialize_cameras(self):
+        """Initialize hardware camera capture objects."""
+        logger.info("Initializing hardware cameras")
+        
+        # Initialize CritterCam
         try:
-            # Initialize first camera
-            self._critter_capture = Picamera2(camera_num=self.critter_cam_id)
-            config0 = self._critter_capture.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
-            self._critter_capture.configure(config0)
-            self._critter_capture.start()
-            self._start_capture_thread('critter_cam', self._critter_capture)
-
-            if self.status_callback:
-                self.status_callback('critter_cam', 'Ready')
-
-            # Add delay before initializing second camera
-            time.sleep(1)
-
-            # Initialize second camera
-            self._nut_capture = Picamera2(camera_num=self.nut_cam_id)
-            config1 = self._nut_capture.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
-            self._nut_capture.configure(config1)
-            self._nut_capture.start()
-            self._start_capture_thread('nut_cam', self._nut_capture)
-
-            if self.status_callback:
-                self.status_callback('nut_cam', 'Ready')
+            self._critter_capture = cv2.VideoCapture(self.critter_cam_id)
+            if not self._critter_capture.isOpened():
+                raise RuntimeError(f"Failed to open CritterCam with ID {self.critter_cam_id}")
+            logger.info(f"CritterCam initialized successfully (ID: {self.critter_cam_id})")
         except Exception as e:
-            logger.error(f"Picamera2 initialization failed: {e}")
-            raise
-
-    # Removed fallback methods - we only support Picamera2 for Pi dual camera setup
-    # def _initialize_libcamera(self):
-    # def _initialize_opencv(self):
-
-    def _start_capture_thread(self, cam_name, capture):
-        """Start capture thread for Picamera2 only."""
-        def capture_loop():
-            while True:
-                try:
-                    # Picamera2 capture only
-                    frame = capture.capture_array()
-                    if frame is not None:
-                        self._latest_frames[cam_name] = frame
-                    time.sleep(0.05)
-                except Exception as e:
-                    logger.error(f"Frame loop error for {cam_name}: {e}")
-                    break
-        t = threading.Thread(target=capture_loop, daemon=True)
-        self._capture_threads[cam_name] = t
-        t.start()
-
-    def get_latest_frame(self, camera_name: str) -> Optional[bytes]:
-        """Get the latest frame from a camera as JPEG bytes (Picamera2 only)."""
+            logger.error(f"CritterCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
+        
+        # Initialize NutCam
         try:
-            frame = self._latest_frames.get(camera_name)
-            if frame is None:
-                return None
-
-            # Picamera2 returns RGB888 format, convert to JPEG
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-            return buffer.tobytes() if ret else None
+            self._nut_capture = cv2.VideoCapture(self.nut_cam_id)
+            if not self._nut_capture.isOpened():
+                raise RuntimeError(f"Failed to open NutCam with ID {self.nut_cam_id}")
+            logger.info(f"NutCam initialized successfully (ID: {self.nut_cam_id})")
         except Exception as e:
-            logger.error(f"Error encoding frame from {camera_name}: {e}")
-            return None
-
-    def is_camera_available(self, camera_name: str) -> bool:
-        """Check if a camera is available and ready."""
+            logger.error(f"NutCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
+    
+    def _initialize_cameras(self):
+        """Initialize hardware camera capture objects."""
+        logger.info("Initializing hardware cameras")
+        
+        # Initialize CritterCam
         try:
-            if camera_name == 'critter_cam':
-                return self._critter_capture is not None and camera_name in self._latest_frames
-            elif camera_name == 'nut_cam':
-                return self._nut_capture is not None and camera_name in self._latest_frames
-            else:
-                return False
+            self._critter_capture = cv2.VideoCapture(self.critter_cam_id)
+            if not self._critter_capture.isOpened():
+                raise RuntimeError(f"Failed to open CritterCam with ID {self.critter_cam_id}")
+            logger.info(f"CritterCam initialized successfully (ID: {self.critter_cam_id})")
         except Exception as e:
-            logger.error(f"Error checking camera availability for {camera_name}: {e}")
-            return False
-
-    def get_camera_info(self) -> Dict[str, Any]:
-        """Get information about available cameras (Picamera2 only)."""
+            logger.error(f"CritterCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize CritterCam (ID: {self.critter_cam_id}): {e}")
+        
+        # Initialize NutCam
         try:
-            info = {
-                'critter_cam': {
-                    'id': self.critter_cam_id,
-                    'available': self.is_camera_available('critter_cam'),
-                    'status': 'Ready' if self.is_camera_available('critter_cam') else 'Not Available'
-                },
-                'nut_cam': {
-                    'id': self.nut_cam_id,
-                    'available': self.is_camera_available('nut_cam'),
-                    'status': 'Ready' if self.is_camera_available('nut_cam') else 'Not Available'
-                },
-                'backend': 'Picamera2',  # Always Picamera2 now
-                'total_cameras': 2
-            }
-            return info
+            self._nut_capture = cv2.VideoCapture(self.nut_cam_id)
+            if not self._nut_capture.isOpened():
+                raise RuntimeError(f"Failed to open NutCam with ID {self.nut_cam_id}")
+            logger.info(f"NutCam initialized successfully (ID: {self.nut_cam_id})")
         except Exception as e:
-            logger.error(f"Error getting camera info: {e}")
-            return {'error': str(e)}
-
-    def cleanup(self):
-        """Clean up Picamera2 resources."""
-        logger.info("Cleaning up camera resources")
+            logger.error(f"NutCam initialization failed: {e}")
+            raise RuntimeError(f"Cannot initialize NutCam (ID: {self.nut_cam_id}): {e}")
+    
+    def read_frames(self) -> Dict[str, Optional[Any]]:
+        """
+        Read one frame from each camera.
+        
+        Returns:
+            Dictionary with keys 'critter_cam' and 'nut_cam'.
+            Values are OpenCV frame arrays or None if read failed.
+        """
+        frames = {
+            'critter_cam': None,
+            'nut_cam': None
+        }
+        
+        # Read CritterCam frame
+        if self._critter_capture and self._critter_capture.isOpened():
+            try:
+                ret, frame = self._critter_capture.read()
+                if ret and frame is not None:
+                    frames['critter_cam'] = frame
+                else:
+                    logger.warning("CritterCam frame read failed")
+            except Exception as e:
+                logger.error(f"Error reading CritterCam frame: {e}")
+        
+        # Read NutCam frame
+        if self._nut_capture and self._nut_capture.isOpened():
+            try:
+                ret, frame = self._nut_capture.read()
+                if ret and frame is not None:
+                    frames['nut_cam'] = frame
+                else:
+                    logger.warning("NutCam frame read failed")
+            except Exception as e:
+                logger.error(f"Error reading NutCam frame: {e}")
+        
+        return frames
+    
+    def release(self):
+        """Release all camera capture objects and clean up resources."""
+        logger.info("Releasing camera resources")
+        
         if self._critter_capture:
             try:
-                # Picamera2 cleanup
-                self._critter_capture.stop()
-                self._critter_capture.close()
+                self._critter_capture.release()
+                logger.info("CritterCam released successfully")
             except Exception as e:
                 logger.error(f"Error releasing CritterCam: {e}")
+            finally:
+                self._critter_capture = None
+        
         if self._nut_capture:
             try:
-                # Picamera2 cleanup
-                self._nut_capture.stop()
-                self._nut_capture.close()
+                self._nut_capture.release()
+                logger.info("NutCam released successfully")
             except Exception as e:
                 logger.error(f"Error releasing NutCam: {e}")
+            finally:
+                self._nut_capture = None
+    
+    def is_camera_available(self, camera_name: str) -> bool:
+        """
+        Check if a specific camera is available and operational.
+        
+        Args:
+            camera_name: Either 'critter_cam' or 'nut_cam'
+            
+        Returns:
+            True if camera is available, False otherwise
+        """
+        if camera_name == 'critter_cam':
+            return self._critter_capture is not None and self._critter_capture.isOpened()
+        elif camera_name == 'nut_cam':
+            return self._nut_capture is not None and self._nut_capture.isOpened()
+        else:
+            logger.warning(f"Unknown camera name: {camera_name}")
+            return False
+    
+    def get_camera_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current camera configuration.
+        
+        Returns:
+            Dictionary with camera configuration and status information
+        """
+        return {
+            'critter_cam': {
+                'id': self.critter_cam_id,
+                'available': self.is_camera_available('critter_cam'),
+                'type': 'hardware'
+            },
+            'nut_cam': {
+                'id': self.nut_cam_id,
+                'available': self.is_camera_available('nut_cam'),
+                'type': 'hardware'
+            }
+        }
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - automatically release resources."""
+        self.release()
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Test configuration for hardware cameras
+    hardware_config = {
+        'critter_cam_id': 0,
+        'nut_cam_id': 1
+    }
+    
+    print("Testing CameraManager...")
+    
+    # Test with context manager (recommended usage)
+    try:
+        with CameraManager(hardware_config) as cam_manager:
+            print(f"Camera info: {cam_manager.get_camera_info()}")
+            
+            # Read a few frames to test
+            for i in range(5):
+                frames = cam_manager.read_frames()
+                print(f"Frame {i+1}:")
+                print(f"  CritterCam: {'OK' if frames['critter_cam'] is not None else 'Failed'}")
+                print(f"  NutCam: {'OK' if frames['nut_cam'] is not None else 'Failed'}")
+                
+                if frames['critter_cam'] is not None:
+                    print(f"  CritterCam shape: {frames['critter_cam'].shape}")
+                if frames['nut_cam'] is not None:
+                    print(f"  NutCam shape: {frames['nut_cam'].shape}")
+                
+                time.sleep(0.1)  # Small delay between frames
+                
+    except Exception as e:
+        print(f"Error during camera testing: {e}")
+    
+    print("Camera testing completed")

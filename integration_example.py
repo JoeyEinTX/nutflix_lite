@@ -17,7 +17,8 @@ from camera_manager import CameraManager
 # Camera configuration
 camera_config = {
     'critter_cam_id': CRITTER_CAM_ID,
-    'nut_cam_id': NUT_CAM_ID
+    'nut_cam_id': NUT_CAM_ID,
+    'debug_mode': True  # Set to False for production Raspberry Pi
 }
 
 # Initialize camera manager

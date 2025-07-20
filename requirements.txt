@@ -2,17 +2,6 @@
 opencv-python>=4.5.0
 numpy>=1.20.0
 PyYAML>=6.0
-requests>=2.25.0
-
-# Raspberry Pi camera dependencies
-picamera2>=0.3.12
-
-# Web dashboard dependencies
-Flask>=2.3.0
-Flask-SocketIO>=5.3.0
-# NOTE: We intentionally exclude eventlet, gevent, and greenlet
-# We use async_mode='threading' in SocketIO for better MJPEG compatibility
-# DO NOT INSTALL: eventlet, gevent, greenlet, dnspython
 
 # GUI dependencies
 # tkinter is included with Python by default

@@ -24,9 +24,9 @@ A lightweight dual-camera GUI application with motion detection capabilities, bu
    python main_with_motion_utils.py
    ```
 
-3. **Hardware Setup**:
-   - Connect cameras to your Raspberry Pi
-   - Update camera IDs in `config.yaml` if needed (default: 0, 1)
+3. **Debug Mode** (without hardware cameras):
+   - Place sample videos in `sample_clips/` directory
+   - Set `debug_mode: true` in your configuration
 
 ## Project Structure
 
@@ -39,6 +39,7 @@ nutflix_lite/
 │   └── logger.py           # Standardized logging system
 ├── camera_manager.py       # Production camera management
 ├── main_with_motion_utils.py # Main GUI application
+├── sample_clips/           # Sample videos for debug mode
 ├── setup.py               # Package installation
 └── requirements.txt       # Dependencies
 ```

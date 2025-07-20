@@ -22,7 +22,7 @@ def test_config_loader():
         config = load_config('config.yaml')
         print(f"✅ Config loaded successfully!")
         print(f"App name: {config.get('app_name')}")
-        print(f"Camera IDs: {config['cameras']['critter_cam_id']}, {config['cameras']['nut_cam_id']}")
+        print(f"Debug mode: {config['cameras']['debug_mode']}")
         print(f"Motion threshold: {config['motion_detection']['threshold']}")
         return True
     except Exception as e:

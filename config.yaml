@@ -4,8 +4,9 @@ version: "1.0.0"
 
 # Camera Configuration
 cameras:
-  critter_cam_id: 0   # CSI Camera 1 (imx708_wide_noir)
-  nut_cam_id: 1       # CSI Camera 2 (imx708_wide_noir)
+  critter_cam_id: 0
+  nut_cam_id: 1
+  debug_mode: true  # Set to false for production Raspberry Pi
 
 # Motion Detection Settings
 motion_detection:
