@@ -10,6 +10,7 @@ import sys
 import time
 from flask import Flask, render_template_string, request, jsonify, Response
 from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 
 # Add the parent directory to the path to import camera_manager
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -24,8 +25,13 @@ logger = get_logger("web")
 camera_manager = None
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_folder='../static',  # Will serve built React app
+           static_url_path='')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'nutflix-development-key-change-in-production')
+
+# Enable CORS for mobile browser compatibility
+CORS(app, origins="*")
 
 # Initialize SocketIO with threading mode for better MJPEG compatibility
 socketio = SocketIO(app, 
@@ -309,9 +315,23 @@ MAIN_PAGE_HTML = """
 
 @app.route('/')
 def index():
-    """Main dashboard page."""
-    logger.info("Dashboard accessed")
-    return render_template_string(MAIN_PAGE_HTML)
+    """Serve React frontend or legacy dashboard."""
+    # Check if React build exists
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        logger.info("Serving React frontend")
+        return app.send_static_file('index.html')
+    else:
+        logger.info("Serving legacy dashboard")
+        return render_template_string(MAIN_PAGE_HTML)
+
+# Catch-all route for React Router (SPA support)
+@app.route('/<path:path>')
+def catch_all(path):
+    """Serve React frontend for SPA routing."""
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return app.send_static_file('index.html')
+    else:
+        return "File not found", 404
 
 @app.route('/health')
 def health_check():
@@ -376,15 +396,82 @@ def debug_camera_test(camera_name):
 
 @app.route('/api/status')
 def api_status():
-    """API endpoint for system status (for future integration)."""
-    return {
-        'dashboard': 'active',
-        'cameras': {
-            'critter_cam': 'unknown',
-            'nut_cam': 'unknown'
-        },
-        'motion_detection': 'ready'
+    """API endpoint for system status (for React frontend)."""
+    camera_status = {
+        'critter_cam': 'unknown',
+        'nut_cam': 'unknown'
     }
+    
+    if camera_manager:
+        try:
+            camera_status['critter_cam'] = 'ready' if camera_manager.is_camera_available('critter_cam') else 'unavailable'
+            camera_status['nut_cam'] = 'ready' if camera_manager.is_camera_available('nut_cam') else 'unavailable'
+        except Exception as e:
+            logger.error(f"Error checking camera status: {e}")
+    
+    return jsonify({
+        'dashboard': 'active',
+        'cameras': camera_status,
+        'motion_detection': 'ready',
+        'system': 'active',
+        'timestamp': time.time()
+    })
+
+@app.route('/api/cameras')
+def api_cameras():
+    """Get available cameras for React frontend."""
+    cameras = [
+        {
+            'id': 'critter_cam',
+            'title': 'CritterCam',
+            'location': 'Raspberry Pi CSI-0 - Exterior Monitoring',
+            'streamUrl': '/video_feed/critter_cam',
+            'snapshotUrl': '/snapshot/critter_cam',
+            'available': camera_manager.is_camera_available('critter_cam') if camera_manager else False
+        },
+        {
+            'id': 'nut_cam',
+            'title': 'NutCam', 
+            'location': 'Raspberry Pi CSI-1 - Interior Monitoring',
+            'streamUrl': '/video_feed/nut_cam',
+            'snapshotUrl': '/snapshot/nut_cam',
+            'available': camera_manager.is_camera_available('nut_cam') if camera_manager else False
+        }
+    ]
+    return jsonify(cameras)
+
+@app.route('/api/sightings')
+def api_sightings():
+    """Get recent wildlife sightings (mock data for now)."""
+    # This would eventually pull from a database or motion detection system
+    sightings = [
+        {
+            'id': '1',
+            'animal': 'Eastern Gray Squirrel',
+            'location': 'CritterCam Feed',
+            'timestamp': time.time() - 1800,  # 30 minutes ago
+            'image': '/api/sightings/1/image'
+        },
+        {
+            'id': '2',
+            'animal': 'Red Squirrel',
+            'location': 'NutCam Feed',
+            'timestamp': time.time() - 7200,  # 2 hours ago
+            'image': '/api/sightings/2/image'
+        }
+    ]
+    return jsonify(sightings)
+
+@app.route('/api/environmental')
+def api_environmental():
+    """Get environmental sensor data."""
+    # Mock data - would eventually come from real sensors
+    return jsonify({
+        'temperature': 42,
+        'humidity': 65,
+        'pressure': 1013.25,
+        'lastUpdate': time.time()
+    })
 
 # SocketIO event handlers
 @socketio.on('connect')
@@ -474,7 +561,13 @@ def video_feed(camera_name):
             else:
                 time.sleep(0.1)
     
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # Create response with mobile-friendly headers
+    response = Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 @app.route('/snapshot/<camera_name>')
 def snapshot(camera_name):
@@ -493,7 +586,13 @@ def snapshot(camera_name):
     
     frame = camera_manager.get_latest_frame(camera_name)
     if frame:
-        return Response(frame, mimetype='image/jpeg')
+        # Create response with mobile-friendly headers
+        response = Response(frame, mimetype='image/jpeg')
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
     return "Camera not ready", 503
 
 def create_placeholder_frame(camera_name):

@@ -46,7 +46,7 @@ def main():
         
         # Start the Flask web server
         logger.info("Starting Flask web server on 0.0.0.0:5000")
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5050, debug=True)
         
     except Exception as e:
         logger.error(f"Failed to start Nutflix Lite Web Dashboard: {e}")
